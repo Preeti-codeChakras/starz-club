@@ -13,8 +13,15 @@ const menuItems = [
   description: "View and manage club members",
   href: "/members",
 },
+
+{
+  name: "Team Assignments",
+  icon: "🔄",
+  description: "Assign members to teams for the active season",
+  href: "/assignments",
+},
   {
-    name: "Schedule",
+    name: "Practice Schedule",
     icon: "📅",
     description: "View upcoming practices and locations",
     href: "/schedule",

@@ -9,7 +9,7 @@ export default function SchedulePage() {
         </Link>
 
         <h1 className="mt-6 text-3xl font-bold text-blue-900">
-          📅 Practice Schedule
+          📅 Pratice Schedule
         </h1>
 
         <p className="mt-3 text-slate-600">
