@@ -1,17 +1,75 @@
+import Link from "next/link";
+
+const menuItems = [
+  {
+    name: "Teams",
+    icon: "🏏",
+    description: "View Starz Club teams and members",
+    href: "/teams",
+  },
+  {
+    name: "Schedule",
+    icon: "📅",
+    description: "View upcoming practices and locations",
+    href: "/schedule",
+  },
+  {
+    name: "Availability",
+    icon: "✅",
+    description: "Submit your availability for club events",
+    href: "/availability",
+  },
+  {
+    name: "Photos",
+    icon: "📸",
+    description: "View club photos and albums",
+    href: "/photos",
+  },
+];
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-blue-50">
-      <h1 className="text-5xl font-bold text-blue-900">
-        ⭐ Starz Club
-      </h1>
+    <main className="min-h-screen bg-slate-50">
+      <header className="bg-blue-900 px-6 py-8 text-white">
+        <div className="mx-auto max-w-5xl">
+          <h1 className="text-4xl font-bold">⭐ Starz Club</h1>
+          <p className="mt-2 text-blue-100">
+            Cricket, community and connection
+          </p>
+        </div>
+      </header>
 
-      <p className="mt-6 text-xl text-gray-700">
-        Welcome to the official Starz Club app.
-      </p>
+      <section className="mx-auto max-w-5xl px-6 py-10">
+        <h2 className="text-2xl font-semibold text-slate-900">
+          Welcome to Starz Club
+        </h2>
 
-      <p className="mt-2 text-gray-500">
-        Built with ❤️ for cricket and our club by Preeti
-      </p>
+        <p className="mt-2 text-slate-600">
+          Manage teams, practices, availability and club photos.
+        </p>
+
+        <div className="mt-8 grid gap-5 sm:grid-cols-2">
+          {menuItems.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+            >
+              <div className="text-3xl">{item.icon}</div>
+
+              <h3 className="mt-4 text-xl font-semibold text-blue-900">
+                {item.name}
+              </h3>
+
+              <p className="mt-2 text-slate-600">{item.description}</p>
+            </Link>
+          ))}
+        </div>
+
+        <p className="mt-10 text-center text-sm text-slate-500">
+          Built with ❤️ for cricket and our club by Preeti
+        </p>
+      </section>
     </main>
   );
 }
