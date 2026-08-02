@@ -40,20 +40,26 @@ export default async function TeamsPage() {
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {(teams as Team[] | null)?.map((team) => (
-            <article
-              key={team.id}
-              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-            >
-              <div className="text-3xl">🏏</div>
+            <Link
+  key={team.id}
+  href={`/teams/${team.id}`}
+  className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
+>
 
-              <h2 className="mt-4 text-xl font-semibold text-blue-900">
-                {team.name}
-              </h2>
+  <div className="text-3xl">🏏</div>
 
-              <p className="mt-2 text-slate-600">
-                {team.description || "Starz Club team"}
-              </p>
-            </article>
+  <h2 className="mt-4 text-xl font-semibold text-blue-900">
+    {team.name}
+  </h2>
+
+  <p className="mt-2 text-slate-600">
+    {team.description || "Starz Club team"}
+  </p>
+
+  <p className="mt-4 text-sm font-medium text-blue-700">
+    View roster →
+  </p>
+</Link>
           ))}
         </div>
       </div>
