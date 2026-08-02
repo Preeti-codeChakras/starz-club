@@ -1,6 +1,18 @@
 import Link from "next/link";
+import { supabase } from "@/lib/supabase/client";
 
-export default function TeamsPage() {
+type Team = {
+  id: string;
+  name: string;
+  description: string | null;
+};
+
+export default async function TeamsPage() {
+  const { data: teams, error } = await supabase
+    .from("teams")
+    .select("id, name, description")
+    .order("name");
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
       <div className="mx-auto max-w-5xl">
@@ -13,8 +25,37 @@ export default function TeamsPage() {
         </h1>
 
         <p className="mt-3 text-slate-600">
-          Team names and members will appear here.
+          Summer League 2026 teams
         </p>
+
+        {error && (
+          <p className="mt-6 rounded-lg bg-red-100 p-4 text-red-700">
+            Unable to load teams: {error.message}
+          </p>
+        )}
+
+        {!error && (!teams || teams.length === 0) && (
+          <p className="mt-6 text-slate-600">No teams found.</p>
+        )}
+
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {(teams as Team[] | null)?.map((team) => (
+            <article
+              key={team.id}
+              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="text-3xl">🏏</div>
+
+              <h2 className="mt-4 text-xl font-semibold text-blue-900">
+                {team.name}
+              </h2>
+
+              <p className="mt-2 text-slate-600">
+                {team.description || "Starz Club team"}
+              </p>
+            </article>
+          ))}
+        </div>
       </div>
     </main>
   );

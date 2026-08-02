@@ -8,6 +8,12 @@ const menuItems = [
     href: "/teams",
   },
   {
+  name: "Members",
+  icon: "👥",
+  description: "View and manage club members",
+  href: "/members",
+},
+  {
     name: "Schedule",
     icon: "📅",
     description: "View upcoming practices and locations",
