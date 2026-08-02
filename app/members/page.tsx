@@ -21,7 +21,8 @@ const initialForm = {
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
-  const [form, setForm] = useState(initialForm);
+const [search, setSearch] = useState("");
+const [form, setForm] = useState(initialForm);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -81,6 +82,17 @@ export default function MembersPage() {
     await loadMembers();
     setSubmitting(false);
   }
+
+const filteredMembers = members.filter((member) => {
+  const searchText = search.toLowerCase();
+
+  return (
+    member.name.toLowerCase().includes(searchText) ||
+    member.email?.toLowerCase().includes(searchText) ||
+    member.phone?.toLowerCase().includes(searchText) ||
+    member.role?.toLowerCase().includes(searchText)
+  );
+});
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
@@ -191,6 +203,13 @@ export default function MembersPage() {
           <h2 className="text-2xl font-semibold text-slate-900">
             Current members
           </h2>
+          <input
+  type="search"
+  placeholder="Search by name, email, phone or role"
+  value={search}
+  onChange={(event) => setSearch(event.target.value)}
+  className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3"
+/>
 
           {loading && (
             <p className="mt-4 text-slate-600">Loading members…</p>
@@ -202,8 +221,14 @@ export default function MembersPage() {
             </p>
           )}
 
+          {!loading && members.length > 0 && filteredMembers.length === 0 && (
+  <p className="mt-5 text-slate-600">
+    No members match your search.
+  </p>
+)}
+
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {members.map((member) => (
+            {filteredMembers.map((member) => (
               <article
                 key={member.id}
                 className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
