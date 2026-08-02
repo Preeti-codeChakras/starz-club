@@ -21,8 +21,11 @@ const initialForm = {
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
-const [search, setSearch] = useState("");
-const [form, setForm] = useState(initialForm);
+  const [search, setSearch] = useState("");
+  const [form, setForm] = useState(initialForm);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -48,6 +51,30 @@ const [form, setForm] = useState(initialForm);
     void loadMembers();
   }, []);
 
+  function startEditing(member: Member) {
+    setEditingMemberId(member.id);
+
+    setForm({
+      name: member.name,
+      email: member.email ?? "",
+      phone: member.phone ?? "",
+      role: member.role ?? "Player",
+    });
+
+    setMessage("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function cancelEditing() {
+    setEditingMemberId(null);
+    setForm(initialForm);
+    setMessage("");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage("");
@@ -63,36 +90,53 @@ const [form, setForm] = useState(initialForm);
 
     setSubmitting(true);
 
-    const { error } = await supabase.from("members").insert({
+    const memberData = {
       name,
       email: email || null,
       phone: phone || null,
       role: form.role,
-    });
+    };
+
+    const { error } = editingMemberId
+      ? await supabase
+          .from("members")
+          .update(memberData)
+          .eq("id", editingMemberId)
+      : await supabase.from("members").insert(memberData);
 
     if (error) {
-      setMessage(`Unable to add member: ${error.message}`);
+      setMessage(
+        `Unable to ${
+          editingMemberId ? "update" : "add"
+        } member: ${error.message}`
+      );
       setSubmitting(false);
       return;
     }
 
     setForm(initialForm);
-    setMessage("Member added successfully.");
 
+    setMessage(
+      editingMemberId
+        ? "Member updated successfully."
+        : "Member added successfully."
+    );
+
+    setEditingMemberId(null);
     await loadMembers();
     setSubmitting(false);
   }
 
-const filteredMembers = members.filter((member) => {
-  const searchText = search.toLowerCase();
+  const filteredMembers = members.filter((member) => {
+    const searchText = search.trim().toLowerCase();
 
-  return (
-    member.name.toLowerCase().includes(searchText) ||
-    member.email?.toLowerCase().includes(searchText) ||
-    member.phone?.toLowerCase().includes(searchText) ||
-    member.role?.toLowerCase().includes(searchText)
-  );
-});
+    return (
+      member.name.toLowerCase().includes(searchText) ||
+      (member.email?.toLowerCase().includes(searchText) ?? false) ||
+      (member.phone?.toLowerCase().includes(searchText) ?? false) ||
+      (member.role?.toLowerCase().includes(searchText) ?? false)
+    );
+  });
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
@@ -111,7 +155,7 @@ const filteredMembers = members.filter((member) => {
 
         <section className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-blue-900">
-            Add a member
+            {editingMemberId ? "Edit member" : "Add a member"}
           </h2>
 
           <form
@@ -128,7 +172,10 @@ const filteredMembers = members.filter((member) => {
                 required
                 value={form.name}
                 onChange={(event) =>
-                  setForm({ ...form, name: event.target.value })
+                  setForm({
+                    ...form,
+                    name: event.target.value,
+                  })
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
@@ -143,7 +190,10 @@ const filteredMembers = members.filter((member) => {
                 type="email"
                 value={form.email}
                 onChange={(event) =>
-                  setForm({ ...form, email: event.target.value })
+                  setForm({
+                    ...form,
+                    email: event.target.value,
+                  })
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
@@ -158,7 +208,10 @@ const filteredMembers = members.filter((member) => {
                 type="tel"
                 value={form.phone}
                 onChange={(event) =>
-                  setForm({ ...form, phone: event.target.value })
+                  setForm({
+                    ...form,
+                    phone: event.target.value,
+                  })
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
@@ -172,7 +225,10 @@ const filteredMembers = members.filter((member) => {
               <select
                 value={form.role}
                 onChange={(event) =>
-                  setForm({ ...form, role: event.target.value })
+                  setForm({
+                    ...form,
+                    role: event.target.value,
+                  })
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               >
@@ -189,13 +245,31 @@ const filteredMembers = members.filter((member) => {
                 disabled={submitting}
                 className="rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? "Adding…" : "Add Member"}
+                {submitting
+                  ? editingMemberId
+                    ? "Updating…"
+                    : "Adding…"
+                  : editingMemberId
+                    ? "Update Member"
+                    : "Add Member"}
               </button>
+
+              {editingMemberId && (
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  className="ml-3 rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium text-slate-700"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </form>
 
           {message && (
-            <p className="mt-4 text-sm text-slate-700">{message}</p>
+            <p className="mt-4 text-sm text-slate-700">
+              {message}
+            </p>
           )}
         </section>
 
@@ -203,16 +277,19 @@ const filteredMembers = members.filter((member) => {
           <h2 className="text-2xl font-semibold text-slate-900">
             Current members
           </h2>
+
           <input
-  type="search"
-  placeholder="Search by name, email, phone or role"
-  value={search}
-  onChange={(event) => setSearch(event.target.value)}
-  className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3"
-/>
+            type="search"
+            placeholder="Search by name, email, phone or role"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3"
+          />
 
           {loading && (
-            <p className="mt-4 text-slate-600">Loading members…</p>
+            <p className="mt-4 text-slate-600">
+              Loading members…
+            </p>
           )}
 
           {!loading && members.length === 0 && (
@@ -221,11 +298,13 @@ const filteredMembers = members.filter((member) => {
             </p>
           )}
 
-          {!loading && members.length > 0 && filteredMembers.length === 0 && (
-  <p className="mt-5 text-slate-600">
-    No members match your search.
-  </p>
-)}
+          {!loading &&
+            members.length > 0 &&
+            filteredMembers.length === 0 && (
+              <p className="mt-5 text-slate-600">
+                No members match your search.
+              </p>
+            )}
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredMembers.map((member) => (
@@ -252,6 +331,14 @@ const filteredMembers = members.filter((member) => {
                     {member.phone}
                   </p>
                 )}
+
+                <button
+                  type="button"
+                  onClick={() => startEditing(member)}
+                  className="mt-4 rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900"
+                >
+                  Edit
+                </button>
               </article>
             ))}
           </div>
