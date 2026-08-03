@@ -33,6 +33,12 @@ const menuItems = [
     href: "/availability",
   },
   {
+  name: "Finance",
+  icon: "💰",
+  description: "Club income, expenses and receipts",
+  href: "/finance",
+},
+  {
     name: "Photos",
     icon: "📸",
     description: "View club photos and albums",
