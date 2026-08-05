@@ -322,7 +322,7 @@ export default function MembersPage() {
 
             <label>
               <span className="text-sm font-medium text-slate-700">
-                Club role
+                Club responsibility
               </span>
 
               <select
@@ -336,7 +336,7 @@ export default function MembersPage() {
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               >
                 <option value="Player">Player</option>
-                <option value="Captain">Captain</option>
+                <option value="Captain">Treasurer</option>
                 <option value="Coach">Coach</option>
                 <option value="Admin">Admin</option>
               </select>

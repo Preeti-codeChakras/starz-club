@@ -9,6 +9,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { uploadFinanceReceipt } from "@/lib/supabase/financeStorage";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 
 type TransactionType = "Income" | "Expense";
 
@@ -92,6 +93,13 @@ function createInitialForm(): TransactionForm {
 }
 
 export default function FinancePage() {
+  const { profile, loadingProfile } =
+    useCurrentProfile();
+
+  const canManageFinance =
+    profile?.appRole === "Admin" ||
+    profile?.appRole === "Treasurer";
+
   const [transactions, setTransactions] = useState<
     FinanceTransaction[]
   >([]);
@@ -134,6 +142,14 @@ export default function FinancePage() {
   const [message, setMessage] = useState("");
 
   async function loadFinanceData() {
+    if (!profile) {
+      setTransactions([]);
+      setTeams([]);
+      setActiveSeason(null);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -178,8 +194,10 @@ export default function FinancePage() {
         .maybeSingle(),
     ]);
 
+    const errors: string[] = [];
+
     if (transactionsResult.error) {
-      setMessage(
+      errors.push(
         `Unable to load transactions: ${transactionsResult.error.message}`
       );
     } else {
@@ -190,7 +208,7 @@ export default function FinancePage() {
     }
 
     if (teamsResult.error) {
-      setMessage(
+      errors.push(
         `Unable to load teams: ${teamsResult.error.message}`
       );
     } else {
@@ -198,19 +216,27 @@ export default function FinancePage() {
     }
 
     if (seasonResult.error) {
-      setMessage(
-        `Unable to load the active season: ${seasonResult.error.message}`
+      errors.push(
+        `Unable to load active season: ${seasonResult.error.message}`
       );
     } else {
       setActiveSeason(seasonResult.data);
+    }
+
+    if (errors.length > 0) {
+      setMessage(errors.join(" "));
     }
 
     setLoading(false);
   }
 
   useEffect(() => {
+    if (loadingProfile) {
+      return;
+    }
+
     void loadFinanceData();
-  }, []);
+  }, [loadingProfile, profile?.userId]);
 
   function resetForm() {
     setForm(createInitialForm());
@@ -225,6 +251,10 @@ export default function FinancePage() {
   function startEditing(
     transaction: FinanceTransaction
   ) {
+    if (!canManageFinance) {
+      return;
+    }
+
     setEditingTransactionId(transaction.id);
 
     setForm({
@@ -321,6 +351,13 @@ export default function FinancePage() {
   ) {
     event.preventDefault();
     setMessage("");
+
+    if (!canManageFinance) {
+      setMessage(
+        "Only a Treasurer or Admin can manage finance transactions."
+      );
+      return;
+    }
 
     const amount = Number(form.amount);
 
@@ -470,6 +507,13 @@ export default function FinancePage() {
   async function deleteTransaction(
     transaction: FinanceTransaction
   ) {
+    if (!canManageFinance) {
+      setMessage(
+        "Only a Treasurer or Admin can delete transactions."
+      );
+      return;
+    }
+
     const confirmed = window.confirm(
       `Are you sure you want to delete "${transaction.description}"?`
     );
@@ -615,6 +659,53 @@ export default function FinancePage() {
         Number(form.participant_count)
       : null;
 
+  if (loadingProfile) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10">
+        <div className="mx-auto max-w-7xl">
+          <p className="text-slate-600">
+            Checking account…
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10">
+        <div className="mx-auto max-w-3xl">
+          <Link
+            href="/"
+            className="text-blue-700 hover:underline"
+          >
+            ← Back to Home
+          </Link>
+
+          <section className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+            <div className="text-4xl">🔐</div>
+
+            <h1 className="mt-4 text-2xl font-bold text-blue-900">
+              Sign in required
+            </h1>
+
+            <p className="mt-2 text-slate-600">
+              You must sign in to view club finance
+              records.
+            </p>
+
+            <Link
+              href="/auth"
+              className="mt-6 inline-block rounded-lg bg-blue-900 px-5 py-3 font-medium text-white"
+            >
+              Sign In
+            </Link>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
       <div className="mx-auto max-w-7xl">
@@ -637,6 +728,14 @@ export default function FinancePage() {
             : ""}
           .
         </p>
+
+        {!canManageFinance && (
+          <div className="mt-5 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+            Finance records are read-only for your
+            account. Only a Treasurer or Admin can add,
+            edit, or delete transactions.
+          </div>
+        )}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <SummaryCard
@@ -668,7 +767,13 @@ export default function FinancePage() {
           </p>
         )}
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+        <div
+          className={`mt-8 grid gap-8 lg:items-start ${
+            canManageFinance
+              ? "lg:grid-cols-[1.15fr_0.85fr]"
+              : "grid-cols-1"
+          }`}
+        >
           {/* TRANSACTION HISTORY */}
           <section>
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -678,9 +783,8 @@ export default function FinancePage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-600">
-                  Review club income,
-                  expenses, split amounts,
-                  and receipts.
+                  Review club income, expenses, shared
+                  amounts, and receipts.
                 </p>
               </div>
 
@@ -747,8 +851,7 @@ export default function FinancePage() {
                   </div>
 
                   <p className="mt-3 font-medium text-slate-800">
-                    No transactions have
-                    been added yet.
+                    No transactions have been added yet.
                   </p>
                 </div>
               )}
@@ -758,8 +861,7 @@ export default function FinancePage() {
               filteredTransactions.length ===
                 0 && (
                 <p className="mt-6 text-slate-600">
-                  No transactions match
-                  your filters.
+                  No transactions match your filters.
                 </p>
               )}
 
@@ -880,38 +982,40 @@ export default function FinancePage() {
                             </div>
                           )}
 
-                        <div className="mt-4 flex gap-2 sm:justify-end">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              startEditing(
-                                transaction
-                              )
-                            }
-                            className="rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900"
-                          >
-                            Edit
-                          </button>
+                        {canManageFinance && (
+                          <div className="mt-4 flex gap-2 sm:justify-end">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startEditing(
+                                  transaction
+                                )
+                              }
+                              className="rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900"
+                            >
+                              Edit
+                            </button>
 
-                          <button
-                            type="button"
-                            disabled={
-                              deletingTransactionId ===
+                            <button
+                              type="button"
+                              disabled={
+                                deletingTransactionId ===
+                                transaction.id
+                              }
+                              onClick={() =>
+                                void deleteTransaction(
+                                  transaction
+                                )
+                              }
+                              className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 disabled:opacity-60"
+                            >
+                              {deletingTransactionId ===
                               transaction.id
-                            }
-                            onClick={() =>
-                              void deleteTransaction(
-                                transaction
-                              )
-                            }
-                            className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 disabled:opacity-60"
-                          >
-                            {deletingTransactionId ===
-                            transaction.id
-                              ? "Deleting…"
-                              : "Delete"}
-                          </button>
-                        </div>
+                                ? "Deleting…"
+                                : "Delete"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -921,369 +1025,369 @@ export default function FinancePage() {
           </section>
 
           {/* ADD / EDIT TRANSACTION */}
-          <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-6">
-            <h2 className="text-xl font-semibold text-blue-900">
-              {editingTransactionId
-                ? "Edit transaction"
-                : "Add transaction"}
-            </h2>
+          {canManageFinance && (
+            <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:sticky lg:top-6">
+              <h2 className="text-xl font-semibold text-blue-900">
+                {editingTransactionId
+                  ? "Edit transaction"
+                  : "Add transaction"}
+              </h2>
 
-            <p className="mt-1 text-sm text-slate-600">
-              Add income or an expense and
-              upload supporting receipts.
-            </p>
+              <p className="mt-1 text-sm text-slate-600">
+                Add income or an expense and upload
+                supporting receipts.
+              </p>
 
-            <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
-              Before uploading a receipt,
-              crop or hide card numbers,
-              addresses, phone numbers, and
-              other sensitive information.
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              className="mt-5 grid gap-4"
-            >
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Transaction type *
-                </span>
-
-                <select
-                  value={
-                    form.transaction_type
-                  }
-                  onChange={(event) => {
-                    const transactionType =
-                      event.target
-                        .value as TransactionType;
-
-                    setForm({
-                      ...form,
-                      transaction_type:
-                        transactionType,
-                      split_expense:
-                        transactionType ===
-                        "Expense"
-                          ? form.split_expense
-                          : false,
-                      participant_count:
-                        transactionType ===
-                        "Expense"
-                          ? form.participant_count
-                          : "",
-                    });
-                  }}
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
-                  <option value="Income">
-                    Income
-                  </option>
-
-                  <option value="Expense">
-                    Expense
-                  </option>
-                </select>
-              </label>
-
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Category *
-                </span>
-
-                <select
-                  value={form.category}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      category:
-                        event.target
-                          .value as Category,
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
-                  {categories.map(
-                    (category) => (
-                      <option
-                        key={category}
-                        value={category}
-                      >
-                        {category}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label>
-                  <span className="text-sm font-medium text-slate-700">
-                    Amount *
-                  </span>
-
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    required
-                    value={form.amount}
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        amount:
-                          event.target.value,
-                      })
-                    }
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-                </label>
-
-                <label>
-                  <span className="text-sm font-medium text-slate-700">
-                    Date *
-                  </span>
-
-                  <input
-                    type="date"
-                    required
-                    value={
-                      form.transaction_date
-                    }
-                    onChange={(event) =>
-                      setForm({
-                        ...form,
-                        transaction_date:
-                          event.target.value,
-                      })
-                    }
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-                </label>
+              <div className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+                Before uploading a receipt, crop or hide
+                card numbers, addresses, phone numbers,
+                and other sensitive information.
               </div>
 
-              {form.transaction_type ===
-                "Expense" && (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <label className="flex items-center gap-3">
+              <form
+                onSubmit={handleSubmit}
+                className="mt-5 grid gap-4"
+              >
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Transaction type *
+                  </span>
+
+                  <select
+                    value={
+                      form.transaction_type
+                    }
+                    onChange={(event) => {
+                      const transactionType =
+                        event.target
+                          .value as TransactionType;
+
+                      setForm({
+                        ...form,
+                        transaction_type:
+                          transactionType,
+                        split_expense:
+                          transactionType ===
+                          "Expense"
+                            ? form.split_expense
+                            : false,
+                        participant_count:
+                          transactionType ===
+                          "Expense"
+                            ? form.participant_count
+                            : "",
+                      });
+                    }}
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  >
+                    <option value="Income">
+                      Income
+                    </option>
+
+                    <option value="Expense">
+                      Expense
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Category *
+                  </span>
+
+                  <select
+                    value={form.category}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        category:
+                          event.target
+                            .value as Category,
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  >
+                    {categories.map(
+                      (category) => (
+                        <option
+                          key={category}
+                          value={category}
+                        >
+                          {category}
+                        </option>
+                      )
+                    )}
+                  </select>
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label>
+                    <span className="text-sm font-medium text-slate-700">
+                      Amount *
+                    </span>
+
                     <input
-                      type="checkbox"
-                      checked={
-                        form.split_expense
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      required
+                      value={form.amount}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          amount:
+                            event.target.value,
+                        })
+                      }
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                    />
+                  </label>
+
+                  <label>
+                    <span className="text-sm font-medium text-slate-700">
+                      Date *
+                    </span>
+
+                    <input
+                      type="date"
+                      required
+                      value={
+                        form.transaction_date
                       }
                       onChange={(event) =>
                         setForm({
                           ...form,
-                          split_expense:
-                            event.target
-                              .checked,
-                          participant_count:
-                            event.target.checked
-                              ? form.participant_count
-                              : "",
+                          transaction_date:
+                            event.target.value,
                         })
                       }
+                      className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                     />
-
-                    <span className="text-sm font-medium text-slate-700">
-                      Split this expense
-                      between attendees
-                    </span>
                   </label>
+                </div>
 
-                  {form.split_expense && (
-                    <div className="mt-4">
-                      <label>
-                        <span className="text-sm font-medium text-slate-700">
-                          Number of
-                          participants *
-                        </span>
+                {form.transaction_type ===
+                  "Expense" && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={
+                          form.split_expense
+                        }
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            split_expense:
+                              event.target
+                                .checked,
+                            participant_count:
+                              event.target.checked
+                                ? form.participant_count
+                                : "",
+                          })
+                        }
+                      />
 
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          required
-                          value={
-                            form.participant_count
-                          }
-                          onChange={(event) =>
-                            setForm({
-                              ...form,
-                              participant_count:
-                                event.target
-                                  .value,
-                            })
-                          }
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                        />
-                      </label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Split this expense between
+                        attendees
+                      </span>
+                    </label>
 
-                      {liveSplitAmount !==
-                        null && (
-                        <div className="mt-4 rounded-lg bg-blue-50 p-4 text-blue-900">
-                          <p className="text-sm">
-                            Amount per person
-                          </p>
+                    {form.split_expense && (
+                      <div className="mt-4">
+                        <label>
+                          <span className="text-sm font-medium text-slate-700">
+                            Number of participants *
+                          </span>
 
-                          <p className="mt-1 text-2xl font-bold">
-                            {formatCurrency(
-                              liveSplitAmount
-                            )}
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            required
+                            value={
+                              form.participant_count
+                            }
+                            onChange={(event) =>
+                              setForm({
+                                ...form,
+                                participant_count:
+                                  event.target
+                                    .value,
+                              })
+                            }
+                            className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                          />
+                        </label>
+
+                        {liveSplitAmount !==
+                          null && (
+                          <div className="mt-4 rounded-lg bg-blue-50 p-4 text-blue-900">
+                            <p className="text-sm">
+                              Amount per person
+                            </p>
+
+                            <p className="mt-1 text-2xl font-bold">
+                              {formatCurrency(
+                                liveSplitAmount
+                              )}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Paid by / received from
+                  </span>
+
+                  <input
+                    type="text"
+                    value={
+                      form.paid_by_or_received_from
+                    }
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        paid_by_or_received_from:
+                          event.target.value,
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Team
+                  </span>
+
+                  <select
+                    value={form.team_id}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        team_id:
+                          event.target.value,
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  >
+                    <option value="">
+                      Entire Starz Club
+                    </option>
+
+                    {teams.map((team) => (
+                      <option
+                        key={team.id}
+                        value={team.id}
+                      >
+                        {team.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Description *
+                  </span>
+
+                  <textarea
+                    rows={4}
+                    required
+                    value={form.description}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        description:
+                          event.target.value,
+                      })
+                    }
+                    placeholder="Describe the income or expense"
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Receipt
+                  </span>
+
+                  <input
+                    key={receiptInputKey}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,application/pdf"
+                    onChange={(event) =>
+                      handleReceiptSelection(
+                        event.target.files?.[0] ??
+                          null
+                      )
+                    }
+                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                  />
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    JPG, PNG, WebP, or PDF. Maximum
+                    10 MB.
+                  </p>
+
+                  {receiptFile && (
+                    <p className="mt-2 text-sm text-slate-600">
+                      Selected:{" "}
+                      {receiptFile.name}
+                    </p>
+                  )}
+
+                  {!receiptFile &&
+                    form.receipt_url && (
+                      <a
+                        href={
+                          form.receipt_url
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block text-sm font-medium text-blue-700 hover:underline"
+                      >
+                        View current receipt →
+                      </a>
+                    )}
+                </label>
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:opacity-60"
+                  >
+                    {submitting
+                      ? editingTransactionId
+                        ? "Updating…"
+                        : "Adding…"
+                      : editingTransactionId
+                        ? "Update Transaction"
+                        : "Add Transaction"}
+                  </button>
+
+                  {editingTransactionId && (
+                    <button
+                      type="button"
+                      onClick={cancelEditing}
+                      disabled={submitting}
+                      className="rounded-lg border border-slate-300 px-5 py-3 font-medium text-slate-700 disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
                   )}
                 </div>
-              )}
-
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Paid by / received from
-                </span>
-
-                <input
-                  type="text"
-                  value={
-                    form.paid_by_or_received_from
-                  }
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      paid_by_or_received_from:
-                        event.target.value,
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </label>
-
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Team
-                </span>
-
-                <select
-                  value={form.team_id}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      team_id:
-                        event.target.value,
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
-                  <option value="">
-                    Entire Starz Club
-                  </option>
-
-                  {teams.map((team) => (
-                    <option
-                      key={team.id}
-                      value={team.id}
-                    >
-                      {team.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Description *
-                </span>
-
-                <textarea
-                  rows={4}
-                  required
-                  value={form.description}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      description:
-                        event.target.value,
-                    })
-                  }
-                  placeholder="Describe the income or expense"
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </label>
-
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Receipt
-                </span>
-
-                <input
-                  key={receiptInputKey}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,application/pdf"
-                  onChange={(event) =>
-                    handleReceiptSelection(
-                      event.target.files?.[0] ??
-                        null
-                    )
-                  }
-                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
-                />
-
-                <p className="mt-1 text-xs text-slate-500">
-                  JPG, PNG, WebP, or PDF.
-                  Maximum 10 MB.
-                </p>
-
-                {receiptFile && (
-                  <p className="mt-2 text-sm text-slate-600">
-                    Selected:{" "}
-                    {receiptFile.name}
-                  </p>
-                )}
-
-                {!receiptFile &&
-                  form.receipt_url && (
-                    <a
-                      href={
-                        form.receipt_url
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-block text-sm font-medium text-blue-700 hover:underline"
-                    >
-                      View current receipt →
-                    </a>
-                  )}
-              </label>
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:opacity-60"
-                >
-                  {submitting
-                    ? editingTransactionId
-                      ? "Updating…"
-                      : "Adding…"
-                    : editingTransactionId
-                      ? "Update Transaction"
-                      : "Add Transaction"}
-                </button>
-
-                {editingTransactionId && (
-                  <button
-                    type="button"
-                    onClick={cancelEditing}
-                    disabled={submitting}
-                    className="rounded-lg border border-slate-300 px-5 py-3 font-medium text-slate-700 disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-          </section>
+              </form>
+            </section>
+          )}
         </div>
       </div>
     </main>
