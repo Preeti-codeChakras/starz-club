@@ -80,12 +80,12 @@ export default function PendingApprovalsPage() {
     setProcessingMemberId(member.id);
     setMessage("");
 
-    const { error } = await supabase
-      .from("members")
-      .update({
-        approval_status: "Active",
-      })
-      .eq("id", member.id);
+ const { error } = await supabase.rpc(
+  "approve_member_and_link_profile",
+  {
+    p_member_id: member.id,
+  }
+);
 
     if (error) {
       setMessage(`Unable to approve player: ${error.message}`);
