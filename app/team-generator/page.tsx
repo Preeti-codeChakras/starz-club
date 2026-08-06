@@ -89,6 +89,7 @@ type BuilderMode = "balanced" | "custom";
 
 
 type CustomAssignments = Record<string, string>;
+type TeamCaptains = Record<string, string>;
 
 type TeamStatus = {
   season_id: string;
@@ -147,6 +148,9 @@ export default function TeamGeneratorPage() {
 
   const [customAssignments, setCustomAssignments] =
     useState<CustomAssignments>({});
+
+  const [teamCaptains, setTeamCaptains] =
+    useState<TeamCaptains>({});
 
 
   const [customBuilderStarted, setCustomBuilderStarted] =
@@ -511,6 +515,7 @@ export default function TeamGeneratorPage() {
     setGeneratedOptions([]);
     setActiveOptionIndex(0);
     setCustomAssignments({});
+    setTeamCaptains({});
     setCustomBuilderStarted(false);
   }
 
@@ -674,6 +679,7 @@ export default function TeamGeneratorPage() {
 
 
     setCustomAssignments(blankAssignments);
+    setTeamCaptains({});
     setCustomBuilderStarted(true);
     setMessage(
       "Custom builder started. Assign each player to a team."
@@ -706,6 +712,7 @@ export default function TeamGeneratorPage() {
 
 
     setCustomAssignments(copiedAssignments);
+    setTeamCaptains({});
     setCustomBuilderStarted(true);
     setBuilderMode("custom");
 
@@ -716,6 +723,60 @@ export default function TeamGeneratorPage() {
       } was copied into the Custom Team Builder. You can now override any assignment.`
     );
   }
+
+
+async function loadConfirmedTeamsForEditing() {
+  if (!selectedSeasonId) {
+    setMessage("Please select a season first.");
+    return;
+  }
+
+  setLoading(true);
+  setMessage("");
+
+  const { data, error } = await supabase
+    .from("season_team_members")
+    .select("team_id, member_id, is_captain")
+    .eq("season_id", selectedSeasonId);
+
+  if (error) {
+    setMessage(
+      `Unable to load confirmed teams: ${error.message}`
+    );
+    setLoading(false);
+    return;
+  }
+
+  const loadedAssignments: CustomAssignments = {};
+  const loadedCaptains: TeamCaptains = {};
+
+  players.forEach((player) => {
+    loadedAssignments[player.member_id] = "";
+  });
+
+  (data ?? []).forEach((row) => {
+    loadedAssignments[row.member_id] = row.team_id;
+
+    if (row.is_captain) {
+      loadedCaptains[row.team_id] = row.member_id;
+    }
+  });
+
+  setCustomAssignments(loadedAssignments);
+  setTeamCaptains(loadedCaptains);
+  setCustomBuilderStarted(true);
+  setBuilderMode("custom");
+  setMessage(
+    `Confirmed teams for ${selectedSeason?.name ?? "this season"} are ready to edit. Move players or change captains, then save the team changes.`
+  );
+  setLoading(false);
+
+  window.setTimeout(() => {
+    document
+      .getElementById("custom-team-builder")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 100);
+}
 
 
 async function saveFinalTeams() {
@@ -762,9 +823,10 @@ async function saveFinalTeams() {
         member_id: player.member_id,
 
 
-        // Captains can be selected later on
-        // the Manage Team Rosters page.
-        is_captain: false,
+        is_captain:
+          builderMode === "custom" &&
+          teamCaptains[generatedTeam.team.id] ===
+            player.member_id,
       }))
   );
 
@@ -822,11 +884,42 @@ async function saveFinalTeams() {
     memberId: string,
     teamId: string
   ) {
+    const previousTeamId = customAssignments[memberId];
+
     setCustomAssignments((current) => ({
       ...current,
       [memberId]: teamId,
     }));
 
+    if (
+      previousTeamId &&
+      teamCaptains[previousTeamId] === memberId
+    ) {
+      setTeamCaptains((current) => {
+        const updated = { ...current };
+        delete updated[previousTeamId];
+        return updated;
+      });
+    }
+
+    setMessage("");
+  }
+
+  function updateTeamCaptain(
+    teamId: string,
+    memberId: string
+  ) {
+    setTeamCaptains((current) => {
+      const updated = { ...current };
+
+      if (memberId) {
+        updated[teamId] = memberId;
+      } else {
+        delete updated[teamId];
+      }
+
+      return updated;
+    });
 
     setMessage("");
   }
@@ -997,6 +1090,9 @@ async function saveFinalTeams() {
                 selectedSeasonName={selectedSeason?.name ?? null}
                 teamStatus={teamStatus}
                 generatedByName={generatedByName}
+                onEditConfirmedTeams={() =>
+                  void loadConfirmedTeamsForEditing()
+                }
               />
             </div>
 
@@ -1114,6 +1210,7 @@ async function saveFinalTeams() {
                     players={players}
                     seasonTeams={seasonTeams}
                     assignments={customAssignments}
+                    teamCaptains={teamCaptains}
                     customTeams={customTeams}
                     unassignedPlayers={unassignedPlayers}
                     fairnessPercentage={customFairnessPercentage}
@@ -1123,6 +1220,7 @@ async function saveFinalTeams() {
                     onStartBlank={startBlankCustomBuilder}
                     onCopyBalanced={copyBalancedOptionToCustom}
                     onAssignmentChange={updateCustomAssignment}
+                    onCaptainChange={updateTeamCaptain}
                     onAutoDistribute={autoDistributeUnassignedPlayers}
                     savingFinalTeams={savingFinalTeams}
                     onSaveFinalTeams={() => void saveFinalTeams()}
@@ -1147,6 +1245,9 @@ async function saveFinalTeams() {
               selectedSeasonName={selectedSeason?.name ?? null}
               teamStatus={teamStatus}
               generatedByName={generatedByName}
+              onEditConfirmedTeams={() =>
+                void loadConfirmedTeamsForEditing()
+              }
             />
           </div>
         </div>
@@ -1161,10 +1262,12 @@ function OfficialTeamsStatusCard({
   selectedSeasonName,
   teamStatus,
   generatedByName,
+  onEditConfirmedTeams,
 }: {
   selectedSeasonName: string | null;
   teamStatus: TeamStatus | null;
   generatedByName: string | null;
+  onEditConfirmedTeams: () => void;
 }) {
   if (!selectedSeasonName) {
     return (
@@ -1238,12 +1341,22 @@ function OfficialTeamsStatusCard({
           </p>
         </div>
 
-        <Link
-          href="/teams"
-          className="mt-4 block w-full rounded-lg border border-green-700 px-4 py-3 text-center text-sm font-semibold text-green-800 hover:bg-green-50 sm:mt-5"
-        >
-          👀 View Official Teams
-        </Link>
+        <div className="mt-4 grid gap-3 sm:mt-5">
+          <Link
+            href="/teams"
+            className="block w-full rounded-lg border border-green-700 px-4 py-3 text-center text-sm font-semibold text-green-800 hover:bg-green-50"
+          >
+            👀 View Official Teams
+          </Link>
+
+          <button
+            type="button"
+            onClick={onEditConfirmedTeams}
+            className="w-full rounded-lg bg-green-700 px-4 py-3 text-sm font-semibold text-white hover:bg-green-800"
+          >
+            ✏️ Edit Confirmed Teams
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -1501,6 +1614,7 @@ function CustomBuilder({
   players,
   seasonTeams,
   assignments,
+  teamCaptains,
   customTeams,
   unassignedPlayers,
   fairnessPercentage,
@@ -1510,6 +1624,7 @@ function CustomBuilder({
   onStartBlank,
   onCopyBalanced,
   onAssignmentChange,
+  onCaptainChange,
   onAutoDistribute,
   savingFinalTeams,
   onSaveFinalTeams,
@@ -1518,6 +1633,7 @@ function CustomBuilder({
   players: GeneratorPlayer[];
   seasonTeams: Team[];
   assignments: CustomAssignments;
+  teamCaptains: TeamCaptains;
   customTeams: GeneratedTeam[];
   unassignedPlayers: GeneratorPlayer[];
   fairnessPercentage: number;
@@ -1530,12 +1646,16 @@ function CustomBuilder({
     memberId: string,
     teamId: string
   ) => void;
+  onCaptainChange: (
+    teamId: string,
+    memberId: string
+  ) => void;
   onAutoDistribute: () => void;
   savingFinalTeams: boolean;
   onSaveFinalTeams: () => void;
 }) {
   return (
-    <section className="mt-6">
+    <section id="custom-team-builder" className="mt-6 scroll-mt-6">
       <div className="rounded-2xl border border-violet-200 bg-violet-50 p-5">
         <h2 className="text-xl font-semibold text-violet-950">
           ✋ Custom Team Builder
@@ -1719,6 +1839,52 @@ function CustomBuilder({
           )}
 
 
+          <section className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
+            <h3 className="text-lg font-semibold text-blue-950">
+              ⭐ Assign Team Captains
+            </h3>
+
+            <p className="mt-1 text-sm text-blue-800">
+              Choose one captain for each team. Captain selection is optional and can be changed later.
+            </p>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {customTeams.map((generatedTeam) => (
+                <label
+                  key={generatedTeam.team.id}
+                  className="rounded-xl border border-blue-200 bg-white p-4"
+                >
+                  <span className="text-sm font-semibold text-blue-950">
+                    {generatedTeam.team.name}
+                  </span>
+
+                  <select
+                    value={teamCaptains[generatedTeam.team.id] ?? ""}
+                    onChange={(event) =>
+                      onCaptainChange(
+                        generatedTeam.team.id,
+                        event.target.value
+                      )
+                    }
+                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900"
+                  >
+                    <option value="">No captain selected</option>
+
+                    {generatedTeam.players.map((player) => (
+                      <option
+                        key={player.member_id}
+                        value={player.member_id}
+                      >
+                        {player.player_name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </section>
+
+
           <TeamCards teams={customTeams} />
 
 
@@ -1749,7 +1915,7 @@ function CustomBuilder({
             >
               {savingFinalTeams
                 ? "Saving Final Teams…"
-                : "💾 Save Custom Teams"}
+                : "💾 Save Team Changes"}
             </button>
           </div>
         </>
@@ -2626,6 +2792,5 @@ function AccessMessage({
     </main>
   );
 }
-
 
 

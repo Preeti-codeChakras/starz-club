@@ -35,11 +35,10 @@ const menuSections: MenuSection[] = [
         href: "/members",
       },
       {
-        name: "Team Assignments",
-        icon: "🔄",
-        description:
-          "Assign players to teams for the active season.",
-        href: "/assignments",
+        name: "Team Builder/Team Assignment",
+        icon: "⚖️",
+        description: "Create Fair Teams Using Skills and Availability.",
+        href: "/team-generator",
       },
     ],
   },
@@ -69,12 +68,7 @@ const menuSections: MenuSection[] = [
           "View practices, games, and locations.",
         href: "/schedule",
       },
-      {
-        name: "Team Generator",
-        icon: "⚖️",
-        description: "Create Fair Teams Using Skills and Availability.",
-        href: "/team-generator",
-      },
+    
     ],
   },
   {
