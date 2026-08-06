@@ -1,6 +1,7 @@
 import Link from "next/link";
 import UserMenu from "@/components/UserMenu";
 import ProfileCompletionWarning from "@/components/ProfileCompleteWarning";
+import PendingApprovalsCard from "@/components/PendingApprovalsCard";
 
 type MenuItem = {
   name: string;
@@ -135,6 +136,7 @@ export default function Home() {
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
         {/* PROFILE COMPLETION WARNING */}
         <ProfileCompletionWarning />
+        <PendingApprovalsCard />
         <div className="space-y-10">
           {menuSections.map((section) => (
             <section key={section.title}>
