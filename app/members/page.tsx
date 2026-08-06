@@ -5,86 +5,177 @@ import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { uploadMemberPhoto } from "@/lib/supabase/storage";
 
+type AppRole =
+  | "Member"
+  | "Captain"
+  | "Treasurer"
+  | "Admin";
+
 type Member = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: AppRole;
+  photo_url: string | null;
+  hasLinkedProfile: boolean;
+};
+
+type MemberRow = {
   id: string;
   name: string;
   email: string | null;
   phone: string | null;
   role: string | null;
   photo_url: string | null;
+  app_role: string | null;
+  has_linked_profile: boolean;
 };
 
-const initialForm = {
+type ProfileRoleRow = {
+  id: string;
+  member_id: string | null;
+  app_role: AppRole;
+};
+
+type MemberForm = {
+  name: string;
+  email: string;
+  phone: string;
+  role: AppRole;
+  photo_url: string;
+};
+
+const initialForm: MemberForm = {
   name: "",
   email: "",
   phone: "",
-  role: "Player",
+  role: "Member",
   photo_url: "",
 };
+
+const inputClassName =
+  "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200";
+
+function normalizeRole(role: string | null | undefined): AppRole {
+  if (
+    role === "Member" ||
+    role === "Captain" ||
+    role === "Treasurer" ||
+    role === "Admin"
+  ) {
+    return role;
+  }
+
+  // Backward compatibility for older member rows.
+  if (role === "Player" || role === "Coach") {
+    return "Member";
+  }
+
+  return "Member";
+}
 
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState<MemberForm>(initialForm);
 
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(
-    null
-  );
+  const [editingMemberId, setEditingMemberId] =
+    useState<string | null>(null);
 
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoInputKey, setPhotoInputKey] = useState(0);
+  const [editingMemberHasLinkedProfile, setEditingMemberHasLinkedProfile] =
+    useState(false);
+
+  const [photoFile, setPhotoFile] =
+    useState<File | null>(null);
+
+  const [photoInputKey, setPhotoInputKey] =
+    useState(0);
 
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(
-    null
-  );
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [deletingMemberId, setDeletingMemberId] =
+    useState<string | null>(null);
 
   const [message, setMessage] = useState("");
 
-  async function loadMembers() {
-    setLoading(true);
+ async function loadMembers() {
+  setLoading(true);
+  setMessage("");
 
-    const { data, error } = await supabase
-      .from("members")
-      .select("id, name, email, phone, role, photo_url")
-      .order("name");
+  const { data, error } = await supabase.rpc(
+    "get_members_with_login_roles"
+  );
 
-    if (error) {
-      setMessage(`Unable to load members: ${error.message}`);
-    } else {
-      setMembers(data ?? []);
-    }
-
+  if (error) {
+    setMessage(
+      `Unable to load members: ${error.message}`
+    );
     setLoading(false);
+    return;
   }
 
-  useEffect(() => {
+  const rows = (data ?? []) as MemberRow[];
+
+  const loadedMembers: Member[] = rows.map(
+    (member) => ({
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      phone: member.phone,
+
+      role: normalizeRole(
+        member.app_role ?? member.role
+      ),
+
+      photo_url: member.photo_url,
+
+      hasLinkedProfile:
+        member.has_linked_profile,
+    })
+  );
+
+  setMembers(loadedMembers);
+  setLoading(false);
+}
+ useEffect(() => {
     void loadMembers();
   }, []);
 
   function resetForm() {
     setEditingMemberId(null);
+    setEditingMemberHasLinkedProfile(false);
     setForm(initialForm);
     setPhotoFile(null);
 
-    // Resets the visible file-input selection.
-    setPhotoInputKey((current) => current + 1);
+    setPhotoInputKey(
+      (current) => current + 1
+    );
   }
 
   function startEditing(member: Member) {
     setEditingMemberId(member.id);
 
+    setEditingMemberHasLinkedProfile(
+      member.hasLinkedProfile
+    );
+
     setForm({
       name: member.name,
       email: member.email ?? "",
       phone: member.phone ?? "",
-      role: member.role ?? "Player",
+      role: member.role,
       photo_url: member.photo_url ?? "",
     });
 
     setPhotoFile(null);
-    setPhotoInputKey((current) => current + 1);
+
+    setPhotoInputKey(
+      (current) => current + 1
+    );
+
     setMessage("");
 
     window.scrollTo({
@@ -98,7 +189,9 @@ export default function MembersPage() {
     setMessage("");
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
     setMessage("");
 
@@ -117,13 +210,19 @@ export default function MembersPage() {
 
     try {
       if (photoFile) {
-        photoUrl = await uploadMemberPhoto(photoFile);
+        photoUrl =
+          await uploadMemberPhoto(photoFile);
       }
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Unknown upload error";
+        error instanceof Error
+          ? error.message
+          : "Unknown upload error";
 
-      setMessage(`Unable to upload photo: ${errorMessage}`);
+      setMessage(
+        `Unable to upload photo: ${errorMessage}`
+      );
+
       setSubmitting(false);
       return;
     }
@@ -136,36 +235,66 @@ export default function MembersPage() {
       photo_url: photoUrl || null,
     };
 
-    const { error } = editingMemberId
-      ? await supabase
-          .from("members")
-          .update(memberData)
-          .eq("id", editingMemberId)
-      : await supabase.from("members").insert(memberData);
+if (editingMemberId) {
+  const { error: updateError } =
+    await supabase.rpc(
+      "update_member_and_role",
+      {
+        p_member_id: editingMemberId,
+        p_name: name,
+        p_email: email,
+        p_phone: phone,
+        p_role: form.role,
+        p_photo_url: photoUrl,
+      }
+    );
 
-    if (error) {
+  if (updateError) {
+    setMessage(
+      `Unable to update member: ${updateError.message}`
+    );
+    setSubmitting(false);
+    return;
+  }
+
+  resetForm();
+  await loadMembers();
+
+  setMessage(
+    "Member details and app role updated successfully."
+  );
+
+  setSubmitting(false);
+  return;
+}
+
+    const { error: insertError } =
+      await supabase
+        .from("members")
+        .insert(memberData);
+
+    if (insertError) {
       setMessage(
-        `Unable to ${
-          editingMemberId ? "update" : "add"
-        } member: ${error.message}`
+        `Unable to add member: ${insertError.message}`
       );
-
       setSubmitting(false);
       return;
     }
 
-    const successMessage = editingMemberId
-      ? "Member updated successfully."
-      : "Member added successfully.";
-
     resetForm();
-    setMessage(successMessage);
 
     await loadMembers();
+
+    setMessage(
+      "Member added successfully. The selected role is saved and can be synchronized when their login profile is linked."
+    );
+
     setSubmitting(false);
   }
 
-  async function deleteMember(member: Member) {
+  async function deleteMember(
+    member: Member
+  ) {
     const confirmed = window.confirm(
       `Are you sure you want to delete ${member.name}?`
     );
@@ -183,7 +312,9 @@ export default function MembersPage() {
       .eq("id", member.id);
 
     if (error) {
-      setMessage(`Unable to delete member: ${error.message}`);
+      setMessage(
+        `Unable to delete member: ${error.message}`
+      );
       setDeletingMemberId(null);
       return;
     }
@@ -192,13 +323,18 @@ export default function MembersPage() {
       resetForm();
     }
 
-    setMessage("Member deleted successfully.");
+    setMessage(
+      "Member deleted successfully."
+    );
+
     await loadMembers();
 
     setDeletingMemberId(null);
   }
 
-  function handlePhotoSelection(file: File | null) {
+  function handlePhotoSelection(
+    file: File | null
+  ) {
     if (!file) {
       setPhotoFile(null);
       return;
@@ -211,18 +347,31 @@ export default function MembersPage() {
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      setMessage("Please select a JPG, PNG, or WebP image.");
+      setMessage(
+        "Please select a JPG, PNG, or WebP image."
+      );
       setPhotoFile(null);
-      setPhotoInputKey((current) => current + 1);
+
+      setPhotoInputKey(
+        (current) => current + 1
+      );
+
       return;
     }
 
-    const maximumFileSize = 5 * 1024 * 1024;
+    const maximumFileSize =
+      5 * 1024 * 1024;
 
     if (file.size > maximumFileSize) {
-      setMessage("The member photo must be smaller than 5 MB.");
+      setMessage(
+        "The member photo must be smaller than 5 MB."
+      );
       setPhotoFile(null);
-      setPhotoInputKey((current) => current + 1);
+
+      setPhotoInputKey(
+        (current) => current + 1
+      );
+
       return;
     }
 
@@ -230,21 +379,36 @@ export default function MembersPage() {
     setPhotoFile(file);
   }
 
-  const filteredMembers = members.filter((member) => {
-    const searchText = search.trim().toLowerCase();
+  const filteredMembers =
+    members.filter((member) => {
+      const searchText =
+        search.trim().toLowerCase();
 
-    return (
-      member.name.toLowerCase().includes(searchText) ||
-      (member.email?.toLowerCase().includes(searchText) ?? false) ||
-      (member.phone?.toLowerCase().includes(searchText) ?? false) ||
-      (member.role?.toLowerCase().includes(searchText) ?? false)
-    );
-  });
+      return (
+        member.name
+          .toLowerCase()
+          .includes(searchText) ||
+        (member.email
+          ?.toLowerCase()
+          .includes(searchText) ??
+          false) ||
+        (member.phone
+          ?.toLowerCase()
+          .includes(searchText) ??
+          false) ||
+        member.role
+          .toLowerCase()
+          .includes(searchText)
+      );
+    });
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10">
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-5xl">
-        <Link href="/" className="text-blue-700 hover:underline">
+        <Link
+          href="/"
+          className="text-blue-700 hover:underline"
+        >
           ← Back to Home
         </Link>
 
@@ -253,12 +417,15 @@ export default function MembersPage() {
         </h1>
 
         <p className="mt-3 text-slate-600">
-          Add and manage Starz Club members.
+          Add members, manage their club role,
+          and keep linked login permissions synchronized.
         </p>
 
-        <section className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="mt-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <h2 className="text-xl font-semibold text-blue-900">
-            {editingMemberId ? "Edit member" : "Add a member"}
+            {editingMemberId
+              ? "Edit member"
+              : "Add a member"}
           </h2>
 
           <form
@@ -280,7 +447,7 @@ export default function MembersPage() {
                     name: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
+                className={inputClassName}
               />
             </label>
 
@@ -298,7 +465,7 @@ export default function MembersPage() {
                     email: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
+                className={inputClassName}
               />
             </label>
 
@@ -316,13 +483,13 @@ export default function MembersPage() {
                     phone: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
+                className={inputClassName}
               />
             </label>
 
             <label>
               <span className="text-sm font-medium text-slate-700">
-                Club responsibility
+                Club role
               </span>
 
               <select
@@ -330,16 +497,36 @@ export default function MembersPage() {
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    role: event.target.value,
+                    role:
+                      event.target
+                        .value as AppRole,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                className={inputClassName}
               >
-                <option value="Player">Player</option>
-                <option value="Captain">Treasurer</option>
-                <option value="Coach">Coach</option>
-                <option value="Admin">Admin</option>
+                <option value="Member">
+                  Member
+                </option>
+
+                <option value="Captain">
+                  Captain
+                </option>
+
+                <option value="Treasurer">
+                  Treasurer
+                </option>
+
+                <option value="Admin">
+                  Admin
+                </option>
               </select>
+
+              <p className="mt-1 text-xs text-slate-500">
+                {editingMemberId &&
+                editingMemberHasLinkedProfile
+                  ? "This also updates the linked login's app permissions."
+                  : "The role is saved on the member record. It will synchronize to app permissions after the login is linked."}
+              </p>
             </label>
 
             <label className="sm:col-span-2">
@@ -353,14 +540,16 @@ export default function MembersPage() {
                 accept="image/png,image/jpeg,image/webp"
                 onChange={(event) =>
                   handlePhotoSelection(
-                    event.target.files?.[0] ?? null
+                    event.target.files?.[0] ??
+                      null
                   )
                 }
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 file:mr-3 file:rounded-md file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:font-medium file:text-blue-900"
               />
 
               <p className="mt-2 text-xs text-slate-500">
-                JPG, PNG, or WebP. Maximum size: 5 MB.
+                JPG, PNG, or WebP. Maximum
+                size: 5 MB.
               </p>
 
               {photoFile && (
@@ -369,26 +558,27 @@ export default function MembersPage() {
                 </p>
               )}
 
-              {!photoFile && form.photo_url && (
-                <div className="mt-3">
-                  <p className="mb-2 text-sm text-slate-600">
-                    Current photo:
-                  </p>
+              {!photoFile &&
+                form.photo_url && (
+                  <div className="mt-3">
+                    <p className="mb-2 text-sm text-slate-600">
+                      Current photo:
+                    </p>
 
-                  <img
-                    src={form.photo_url}
-                    alt="Current member profile"
-                    className="h-24 w-24 rounded-full object-cover"
-                  />
-                </div>
-              )}
+                    <img
+                      src={form.photo_url}
+                      alt="Current member profile"
+                      className="h-24 w-24 rounded-full object-cover"
+                    />
+                  </div>
+                )}
             </label>
 
-            <div className="sm:col-span-2">
+            <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row">
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg bg-blue-900 px-5 py-3 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting
                   ? editingMemberId
@@ -404,7 +594,7 @@ export default function MembersPage() {
                   type="button"
                   onClick={cancelEditing}
                   disabled={submitting}
-                  className="ml-3 rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium text-slate-700 disabled:opacity-60"
+                  className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -413,7 +603,7 @@ export default function MembersPage() {
           </form>
 
           {message && (
-            <p className="mt-4 text-sm text-slate-700">
+            <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
               {message}
             </p>
           )}
@@ -428,8 +618,10 @@ export default function MembersPage() {
             type="search"
             placeholder="Search by name, email, phone, or role"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400"
+            onChange={(event) =>
+              setSearch(event.target.value)
+            }
+            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
 
           {loading && (
@@ -438,11 +630,12 @@ export default function MembersPage() {
             </p>
           )}
 
-          {!loading && members.length === 0 && (
-            <p className="mt-4 text-slate-600">
-              No members have been added yet.
-            </p>
-          )}
+          {!loading &&
+            members.length === 0 && (
+              <p className="mt-4 text-slate-600">
+                No members have been added yet.
+              </p>
+            )}
 
           {!loading &&
             members.length > 0 &&
@@ -453,65 +646,95 @@ export default function MembersPage() {
             )}
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredMembers.map((member) => (
-              <article
-                key={member.id}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                {member.photo_url ? (
-                  <img
-                    src={member.photo_url}
-                    alt={`${member.name} profile`}
-                    className="mb-4 h-24 w-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-slate-200 text-4xl">
-                    👤
+            {filteredMembers.map(
+              (member) => (
+                <article
+                  key={member.id}
+                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+                >
+                  {member.photo_url ? (
+                    <img
+                      src={member.photo_url}
+                      alt={`${member.name} profile`}
+                      className="mb-4 h-24 w-24 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-slate-200 text-4xl">
+                      👤
+                    </div>
+                  )}
+
+                  <h3 className="text-lg font-semibold text-blue-900">
+                    {member.name}
+                  </h3>
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                        member.role === "Admin"
+                          ? "bg-blue-100 text-blue-900"
+                          : member.role ===
+                              "Treasurer"
+                            ? "bg-green-100 text-green-900"
+                            : member.role ===
+                                "Captain"
+                              ? "bg-amber-100 text-amber-900"
+                              : "bg-slate-100 text-slate-700"
+                      }`}
+                    >
+                      {member.role}
+                    </span>
+
+                    {!member.hasLinkedProfile && (
+                      <span className="rounded-full bg-red-50 px-3 py-1 text-xs font-medium text-red-700">
+                        Login not linked
+                      </span>
+                    )}
                   </div>
-                )}
 
-                <h3 className="text-lg font-semibold text-blue-900">
-                  {member.name}
-                </h3>
+                  {member.email && (
+                    <p className="mt-3 break-all text-sm text-slate-600">
+                      {member.email}
+                    </p>
+                  )}
 
-                <p className="mt-1 text-sm font-medium text-slate-600">
-                  {member.role || "Player"}
-                </p>
+                  {member.phone && (
+                    <p className="mt-1 text-sm text-slate-600">
+                      {member.phone}
+                    </p>
+                  )}
 
-                {member.email && (
-                  <p className="mt-3 break-all text-sm text-slate-600">
-                    {member.email}
-                  </p>
-                )}
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        startEditing(member)
+                      }
+                      className="rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-50"
+                    >
+                      Edit
+                    </button>
 
-                {member.phone && (
-                  <p className="mt-1 text-sm text-slate-600">
-                    {member.phone}
-                  </p>
-                )}
-
-                <div className="mt-4 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => startEditing(member)}
-                    className="rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900"
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={deletingMemberId === member.id}
-                    onClick={() => void deleteMember(member)}
-                    className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {deletingMemberId === member.id
-                      ? "Deleting…"
-                      : "Delete"}
-                  </button>
-                </div>
-              </article>
-            ))}
+                    <button
+                      type="button"
+                      disabled={
+                        deletingMemberId ===
+                        member.id
+                      }
+                      onClick={() =>
+                        void deleteMember(member)
+                      }
+                      className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingMemberId ===
+                      member.id
+                        ? "Deleting…"
+                        : "Delete"}
+                    </button>
+                  </div>
+                </article>
+              )
+            )}
           </div>
         </section>
       </div>
