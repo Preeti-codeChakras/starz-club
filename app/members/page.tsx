@@ -280,7 +280,7 @@ export default function MembersPage() {
                     name: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
               />
             </label>
 
@@ -298,7 +298,7 @@ export default function MembersPage() {
                     email: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
               />
             </label>
 
@@ -316,7 +316,7 @@ export default function MembersPage() {
                     phone: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
               />
             </label>
 
@@ -356,7 +356,7 @@ export default function MembersPage() {
                     event.target.files?.[0] ?? null
                   )
                 }
-                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 bg-white"
               />
 
               <p className="mt-2 text-xs text-slate-500">
@@ -429,7 +429,7 @@ export default function MembersPage() {
             placeholder="Search by name, email, phone, or role"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3"
+            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 bg-white"
           />
 
           {loading && (
