@@ -429,7 +429,7 @@ export default function MembersPage() {
             placeholder="Search by name, email, phone, or role"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400 bg-white"
+            className="mt-4 w-full max-w-md rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-400"
           />
 
           {loading && (
