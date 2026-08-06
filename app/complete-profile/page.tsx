@@ -246,7 +246,7 @@ export default function CompleteProfilePage() {
                     name: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3, bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100"
               />
             </label>
 
@@ -264,7 +264,7 @@ export default function CompleteProfilePage() {
                     phone: event.target.value,
                   })
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100"
               />
             </label>
 
@@ -283,20 +283,22 @@ export default function CompleteProfilePage() {
                         event.target.value as PrimaryRole,
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-blue-200"
                 >
-                  <option value="Batter">Batter</option>
-                  <option value="Bowler">Bowler</option>
-                  <option value="Batting All-Rounder">
+                  <option value="Batter" className="text-slate-900">Batter</option>
+                  <option value="Bowler" className="text-slate-900">Bowler</option>
+                  <option value="Batting All-Rounder" className="text-slate-900">
                     Batting All-Rounder
                   </option>
-                  <option value="Bowling All-Rounder">
+                  <option value="Bowling All-Rounder" className="text-slate-900">
                     Bowling All-Rounder
                   </option>
-                  <option value="Wicketkeeper">
+                  <option value="Wicketkeeper" className="text-slate-900">
                     Wicketkeeper
                   </option>
-                  <option value="Fielder">Fielder</option>
+                  <option value="Fielder" className="text-slate-900">
+                    Fielder
+                  </option>
                 </select>
               </label>
 
@@ -316,7 +318,7 @@ export default function CompleteProfilePage() {
                         event.target.value,
                     })
                   }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100"
                 />
               </label>
             </div>
@@ -382,7 +384,7 @@ export default function CompleteProfilePage() {
                   }
                 />
 
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-700 bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100">
                   I can keep wickets
                 </span>
               </label>
@@ -400,7 +402,7 @@ export default function CompleteProfilePage() {
                   }
                 />
 
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-700 bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100">
                   I am open to captaincy
                 </span>
               </label>
@@ -453,7 +455,7 @@ function RatingSelect({
         onChange={(event) =>
           onChange(event.target.value)
         }
-        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3"
+        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 focus:border-blue-700 focus:outline-none focus:ring-blue-200"
       >
         <option value="1">1 — Beginner</option>
         <option value="2">2 — Developing</option>
