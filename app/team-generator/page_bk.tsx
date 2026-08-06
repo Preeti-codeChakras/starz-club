@@ -90,24 +90,6 @@ type BuilderMode = "balanced" | "custom";
 
 type CustomAssignments = Record<string, string>;
 
-type TeamStatus = {
-  season_id: string;
-  status: "Draft" | "Confirmed" | "Published";
-  generated_at: string;
-  generated_by: string;
-  player_count: number;
-  team_count: number;
-};
-
-type GeneratedByProfile = {
-  id: string;
-  member_id: string | null;
-  members:
-    | { name: string }
-    | { name: string }[]
-    | null;
-};
-
 
 const DEFAULT_RATING = 3;
 const NUMBER_OF_OPTIONS = 3;
@@ -156,12 +138,8 @@ export default function TeamGeneratorPage() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState("");
-  const [teamStatus, setTeamStatus] =
-    useState<TeamStatus | null>(null);
-  const [generatedByName, setGeneratedByName] =
-    useState<string | null>(null);
   const [savingFinalTeams, setSavingFinalTeams] =
-    useState(false);
+  useState(false);
 
 
   const selectedSeason = useMemo(
@@ -274,8 +252,6 @@ export default function TeamGeneratorPage() {
       if (!seasonId) {
         setSeasonTeams([]);
         setPlayers([]);
-        setTeamStatus(null);
-        setGeneratedByName(null);
         resetBuilder();
         setLoading(false);
         return;
@@ -287,40 +263,30 @@ export default function TeamGeneratorPage() {
       resetBuilder();
 
 
-      const [
-        seasonTeamsResult,
-        playersResult,
-        teamStatusResult,
-      ] = await Promise.all([
-        supabase
-          .from("season_teams")
-          .select(
-            `
-              team_id,
-              teams (
-                id,
-                name
-              )
-            `
-          )
-          .eq("season_id", seasonId)
-          .eq("is_active", true),
+      const [seasonTeamsResult, playersResult] =
+        await Promise.all([
+          supabase
+            .from("season_teams")
+            .select(
+              `
+                team_id,
+                teams (
+                  id,
+                  name
+                )
+              `
+            )
+            .eq("season_id", seasonId)
+            .eq("is_active", true),
 
-        supabase.rpc(
-          "get_team_generator_players",
-          {
-            p_season_id: seasonId,
-          }
-        ),
 
-        supabase
-          .from("season_team_status")
-          .select(
-            "season_id, status, generated_at, generated_by, player_count, team_count"
-          )
-          .eq("season_id", seasonId)
-          .maybeSingle(),
-      ]);
+          supabase.rpc(
+            "get_team_generator_players",
+            {
+              p_season_id: seasonId,
+            }
+          ),
+        ]);
 
 
       const errors: string[] = [];
@@ -390,50 +356,6 @@ export default function TeamGeneratorPage() {
             })
           )
         );
-      }
-
-
-      if (teamStatusResult.error) {
-        errors.push(
-          `Unable to load official-team status: ${teamStatusResult.error.message}`
-        );
-        setTeamStatus(null);
-        setGeneratedByName(null);
-      } else if (teamStatusResult.data) {
-        const loadedStatus =
-          teamStatusResult.data as TeamStatus;
-        setTeamStatus(loadedStatus);
-
-        const { data: generatedByProfile } =
-          await supabase
-            .from("profiles")
-            .select(
-              `
-                id,
-                member_id,
-                members (
-                  name
-                )
-              `
-            )
-            .eq("id", loadedStatus.generated_by)
-            .maybeSingle();
-
-        if (generatedByProfile) {
-          const typedProfile =
-            generatedByProfile as unknown as GeneratedByProfile;
-          const relation = typedProfile.members;
-          setGeneratedByName(
-            Array.isArray(relation)
-              ? relation[0]?.name ?? null
-              : relation?.name ?? null
-          );
-        } else {
-          setGeneratedByName(null);
-        }
-      } else {
-        setTeamStatus(null);
-        setGeneratedByName(null);
       }
 
 
@@ -806,11 +728,10 @@ async function saveFinalTeams() {
   }
 
 
-  await loadSeasonData(selectedSeasonId);
-
   setMessage(
-    `${Number(data)} player assignments were saved successfully. These are now the confirmed teams for ${selectedSeason?.name ?? "this season"}.`
+    `${Number(data)} player assignments were saved successfully. You can now review them in Manage Team Rosters.`
   );
+
 
   setSavingFinalTeams(false);
 }
@@ -926,7 +847,7 @@ async function saveFinalTeams() {
 
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <main className="min-h-screen bg-slate-50 px-5 py-8 sm:px-8 sm:py-10">
       <div className="mx-auto max-w-7xl">
         <Link
           href="/"
@@ -937,12 +858,12 @@ async function saveFinalTeams() {
 
 
         <div className="mt-6">
-          <h1 className="text-2xl font-bold text-blue-900 sm:text-3xl">
-            🏏 Team Builder
+          <h1 className="text-3xl font-bold text-blue-900">
+            ⚖️ Fair Team Builder
           </h1>
 
 
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+          <p className="mt-2 max-w-3xl text-slate-600">
             Generate three balanced options or manually
             build your own teams without being restricted
             by the recommended fairness score.
@@ -957,316 +878,243 @@ async function saveFinalTeams() {
         )}
 
 
-        <div className="mt-6 grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-          {/* LEFT: SEASON, SUMMARY AND BUILDER */}
-          <div className="min-w-0">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Season
-                </span>
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <label>
+            <span className="text-sm font-medium text-slate-700">
+              Season
+            </span>
 
-                <select
-                  value={selectedSeasonId}
-                  onChange={(event) =>
-                    void handleSeasonChange(event.target.value)
-                  }
-                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-3"
+
+            <select
+              value={selectedSeasonId}
+              onChange={(event) =>
+                void handleSeasonChange(
+                  event.target.value
+                )
+              }
+              className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-3"
+            >
+              <option value="">
+                Select a season
+              </option>
+
+
+              {seasons.map((season) => (
+                <option
+                  key={season.id}
+                  value={season.id}
                 >
-                  <option value="">Select a season</option>
+                  {season.name}
+                  {season.active
+                    ? " — Active"
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </label>
 
-                  {seasons.map((season) => (
-                    <option key={season.id} value={season.id}>
-                      {season.name}
-                      {season.active ? " — Active" : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
 
-              {selectedSeason && (
-                <p className="mt-3 text-sm text-slate-600">
-                  Building teams for <strong>{selectedSeason.name}</strong>.
-                </p>
-              )}
+          {selectedSeason && (
+            <p className="mt-3 text-sm text-slate-600">
+              Building teams for{" "}
+              <strong>
+                {selectedSeason.name}
+              </strong>
+              .
+            </p>
+          )}
+        </section>
+
+
+        {loading ? (
+          <p className="mt-8 text-slate-600">
+            Loading team-builder data…
+          </p>
+        ) : (
+          <>
+            <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <SummaryCard
+                label="Players"
+                value={players.length.toString()}
+                detail="Active approved members"
+              />
+
+
+              <SummaryCard
+                label="Teams"
+                value={seasonTeams.length.toString()}
+                detail="Configured for season"
+              />
+
+
+              <SummaryCard
+                label="Wicketkeepers"
+                value={availableWicketkeepers.toString()}
+                detail={`Recommended minimum: ${seasonTeams.length}`}
+              />
+
+
+              <SummaryCard
+                label="Captain eligible"
+                value={availableCaptains.toString()}
+                detail={`Recommended minimum: ${seasonTeams.length}`}
+              />
             </section>
 
-            {/* MOBILE: SHOW OFFICIAL STATUS NEAR THE TOP */}
-            <div className="mt-4 xl:hidden">
-              <OfficialTeamsStatusCard
-                selectedSeasonName={selectedSeason?.name ?? null}
-                teamStatus={teamStatus}
-                generatedByName={generatedByName}
+
+            <section className="mt-6 grid gap-5 lg:grid-cols-2">
+              <WarningCard
+                title="Incomplete availability"
+                count={
+                  playersWithIncompleteAvailability.length
+                }
+                message={
+                  playersWithIncompleteAvailability.length >
+                  0
+                    ? `${playersWithIncompleteAvailability.length} players have not answered every weekend. Missing responses count as unavailable.`
+                    : "Every player has answered all active weekend dates."
+                }
+                good={
+                  playersWithIncompleteAvailability.length ===
+                  0
+                }
               />
-            </div>
 
-            {loading ? (
-              <p className="mt-6 text-slate-600">
-                Loading team-builder data…
-              </p>
-            ) : (
-              <>
-                <section className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-                  <SummaryCard
-                    label="Players"
-                    value={players.length.toString()}
-                    detail="Active members"
-                  />
 
-                  <SummaryCard
-                    label="Teams"
-                    value={seasonTeams.length.toString()}
-                    detail="For this season"
-                  />
+              <WarningCard
+                title="Missing skill ratings"
+                count={
+                  playersWithMissingRatings.length
+                }
+                message={
+                  playersWithMissingRatings.length >
+                  0
+                    ? `${playersWithMissingRatings.length} players have incomplete ratings. Missing ratings temporarily use 3 out of 5.`
+                    : "Every player has batting, bowling, and fielding ratings."
+                }
+                good={
+                  playersWithMissingRatings.length ===
+                  0
+                }
+              />
+            </section>
+            <section className="mt-7">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Choose how you want to build the teams
+              </h2>
 
-                  <SummaryCard
-                    label="Wicketkeepers"
-                    value={availableWicketkeepers.toString()}
-                    detail={`Recommended: ${seasonTeams.length}`}
-                  />
 
-                  <SummaryCard
-                    label="Captain eligible"
-                    value={availableCaptains.toString()}
-                    detail={`Recommended: ${seasonTeams.length}`}
-                  />
-                </section>
+              <div className="mt-3 grid max-w-2xl grid-cols-2 rounded-xl bg-slate-200 p-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleModeChange("balanced")
+                  }
+                  className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
+                    builderMode === "balanced"
+                      ? "bg-white text-blue-900 shadow-sm"
+                      : "text-slate-600"
+                  }`}
+                >
+                  ⚖️ Balanced Options
+                </button>
 
-                <section className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <WarningCard
-                    title="Incomplete availability"
-                    count={playersWithIncompleteAvailability.length}
-                    message={
-                      playersWithIncompleteAvailability.length > 0
-                        ? `${playersWithIncompleteAvailability.length} players have not answered every weekend. Missing responses count as unavailable.`
-                        : "Every player has answered all active weekend dates."
-                    }
-                    good={playersWithIncompleteAvailability.length === 0}
-                  />
 
-                  <WarningCard
-                    title="Missing skill ratings"
-                    count={playersWithMissingRatings.length}
-                    message={
-                      playersWithMissingRatings.length > 0
-                        ? `${playersWithMissingRatings.length} players have incomplete ratings. Missing ratings temporarily use 3 out of 5.`
-                        : "Every player has batting, bowling, and fielding ratings."
-                    }
-                    good={playersWithMissingRatings.length === 0}
-                  />
-                </section>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleModeChange("custom")
+                  }
+                  className={`rounded-lg px-4 py-3 text-sm font-medium transition ${
+                    builderMode === "custom"
+                      ? "bg-white text-blue-900 shadow-sm"
+                      : "text-slate-600"
+                  }`}
+                >
+                  ✋ Build My Own
+                </button>
+              </div>
+            </section>
 
-                <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Choose how you want to build the teams
-                  </h2>
 
-                  <p className="mt-1 text-sm text-slate-500">
-                    Generate balanced options or assign players manually.
-                  </p>
-
-                  <div className="mt-4 grid grid-cols-1 gap-1 rounded-xl bg-slate-200 p-1 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("balanced")}
-                      className={`rounded-lg px-3 py-3 text-sm font-medium transition sm:px-4 ${
-                        builderMode === "balanced"
-                          ? "bg-white text-blue-900 shadow-sm"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      ⚖️ Balanced Options
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange("custom")}
-                      className={`rounded-lg px-3 py-3 text-sm font-medium transition sm:px-4 ${
-                        builderMode === "custom"
-                          ? "bg-white text-blue-900 shadow-sm"
-                          : "text-slate-600"
-                      }`}
-                    >
-                      ✋ Build My Own
-                    </button>
-                  </div>
-                </section>
-
-                {builderMode === "balanced" && (
-                  <BalancedBuilder
-                    generating={generating}
-                    generatedOptions={generatedOptions}
-                    activeOptionIndex={activeOptionIndex}
-                    activeOption={activeOption}
-                    generatedTeams={generatedTeams}
-                    canGenerate={seasonTeams.length >= 2 && players.length > 0}
-                    onGenerate={generateTeams}
-                    onSelectOption={setActiveOptionIndex}
-                    onCopyToCustom={copyBalancedOptionToCustom}
-                    savingFinalTeams={savingFinalTeams}
-                    onSaveFinalTeams={() => void saveFinalTeams()}
-                  />
-                )}
-
-                {builderMode === "custom" && (
-                  <CustomBuilder
-                    started={customBuilderStarted}
-                    players={players}
-                    seasonTeams={seasonTeams}
-                    assignments={customAssignments}
-                    customTeams={customTeams}
-                    unassignedPlayers={unassignedPlayers}
-                    fairnessPercentage={customFairnessPercentage}
-                    rawScore={customRawScore}
-                    canStart={seasonTeams.length >= 2 && players.length > 0}
-                    hasBalancedOption={Boolean(activeOption)}
-                    onStartBlank={startBlankCustomBuilder}
-                    onCopyBalanced={copyBalancedOptionToCustom}
-                    onAssignmentChange={updateCustomAssignment}
-                    onAutoDistribute={autoDistributeUnassignedPlayers}
-                    savingFinalTeams={savingFinalTeams}
-                    onSaveFinalTeams={() => void saveFinalTeams()}
-                  />
-                )}
-
-                <div className="mt-8">
-                  <Link
-                    href="/season-setup"
-                    className="inline-block rounded-lg border border-blue-900 px-6 py-3 font-medium text-blue-900"
-                  >
-                    Review Season Setup
-                  </Link>
-                </div>
-              </>
+            {builderMode === "balanced" && (
+              <BalancedBuilder
+                generating={generating}
+                generatedOptions={generatedOptions}
+                activeOptionIndex={activeOptionIndex}
+                activeOption={activeOption}
+                generatedTeams={generatedTeams}
+                canGenerate={
+                  seasonTeams.length >= 2 &&
+                  players.length > 0
+                }
+                onGenerate={generateTeams}
+                onSelectOption={setActiveOptionIndex}
+                onCopyToCustom={
+                  copyBalancedOptionToCustom
+                }
+                savingFinalTeams={savingFinalTeams}
+                onSaveFinalTeams={() =>
+                  void saveFinalTeams()
+                }
+              />
             )}
-          </div>
 
-          {/* RIGHT: OFFICIAL TEAM STATUS */}
-          <div className="hidden xl:sticky xl:top-6 xl:block">
-            <OfficialTeamsStatusCard
-              selectedSeasonName={selectedSeason?.name ?? null}
-              teamStatus={teamStatus}
-              generatedByName={generatedByName}
-            />
-          </div>
-        </div>
+
+            {builderMode === "custom" && (
+              <CustomBuilder
+                started={customBuilderStarted}
+                players={players}
+                seasonTeams={seasonTeams}
+                assignments={customAssignments}
+                customTeams={customTeams}
+                unassignedPlayers={unassignedPlayers}
+                fairnessPercentage={
+                  customFairnessPercentage
+                }
+                rawScore={customRawScore}
+                canStart={
+                  seasonTeams.length >= 2 &&
+                  players.length > 0
+                }
+                hasBalancedOption={Boolean(
+                  activeOption
+                )}
+                onStartBlank={
+                  startBlankCustomBuilder
+                }
+                onCopyBalanced={
+                  copyBalancedOptionToCustom
+                }
+                onAssignmentChange={
+                  updateCustomAssignment
+                }
+                onAutoDistribute={
+                  autoDistributeUnassignedPlayers
+                }
+                savingFinalTeams={savingFinalTeams}
+                onSaveFinalTeams={() =>
+                  void saveFinalTeams()
+                }
+              />
+            )}
+
+
+            <div className="mt-8">
+              <Link
+                href="/season-setup"
+                className="inline-block rounded-lg border border-blue-900 px-6 py-3 font-medium text-blue-900"
+              >
+                Review Season Setup
+              </Link>
+            </div>
+          </>
+        )}
       </div>
     </main>
   );
 }
 
-
-
-function OfficialTeamsStatusCard({
-  selectedSeasonName,
-  teamStatus,
-  generatedByName,
-}: {
-  selectedSeasonName: string | null;
-  teamStatus: TeamStatus | null;
-  generatedByName: string | null;
-}) {
-  if (!selectedSeasonName) {
-    return (
-      <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-sm text-slate-600">
-          Select a season to view its official-team status.
-        </p>
-      </aside>
-    );
-  }
-
-  if (!teamStatus) {
-    return (
-      <aside className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Team status
-        </p>
-        <h2 className="mt-2 text-lg font-bold text-slate-900">
-          No confirmed teams yet
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Teams have not yet been generated and confirmed for {selectedSeasonName}.
-        </p>
-      </aside>
-    );
-  }
-
-  return (
-    <aside className="overflow-hidden rounded-2xl border border-green-200 bg-white shadow-sm">
-      <div className="bg-green-700 px-4 py-4 text-white sm:px-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-green-100">
-          Official team status
-        </p>
-        <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <h2 className="text-lg font-bold sm:text-xl">✅ Teams Confirmed</h2>
-          <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-            {teamStatus.status}
-          </span>
-        </div>
-      </div>
-
-      <div className="p-4 sm:p-5">
-        <p className="font-semibold text-slate-900">{selectedSeasonName}</p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Teams for this season have already been generated and confirmed.
-        </p>
-
-        <dl className="mt-4 grid grid-cols-2 gap-2 sm:mt-5 sm:gap-3">
-          <StatusMetric label="Teams" value={teamStatus.team_count.toString()} />
-          <StatusMetric label="Players" value={teamStatus.player_count.toString()} />
-        </dl>
-
-        <div className="mt-4 rounded-xl bg-slate-50 p-3 sm:mt-5 sm:p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Last confirmed
-          </p>
-          <p className="mt-1 text-sm font-semibold text-slate-800">
-            {formatTeamStatusDate(teamStatus.generated_at)}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            By {generatedByName ?? "Club Admin"}
-          </p>
-        </div>
-
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 sm:mt-5 sm:p-4">
-          <p className="text-sm font-semibold text-amber-900">
-            Please avoid unnecessary regeneration
-          </p>
-          <p className="mt-1 text-sm leading-6 text-amber-800">
-            Generate and save new teams only when there has been a significant roster or availability change.
-          </p>
-        </div>
-
-        <Link
-          href="/teams"
-          className="mt-4 block w-full rounded-lg border border-green-700 px-4 py-3 text-center text-sm font-semibold text-green-800 hover:bg-green-50 sm:mt-5"
-        >
-          👀 View Official Teams
-        </Link>
-      </div>
-    </aside>
-  );
-}
-
-function StatusMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-green-50 p-3">
-      <dt className="text-xs font-medium text-green-700">{label}</dt>
-      <dd className="mt-1 text-2xl font-bold text-green-900">{value}</dd>
-    </div>
-  );
-}
-
-function formatTeamStatusDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
 
 function BalancedBuilder({
   generating,
@@ -1312,7 +1160,7 @@ function BalancedBuilder({
           type="button"
           disabled={generating || !canGenerate}
           onClick={onGenerate}
-          className="mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-6"
+          className="mt-5 rounded-lg bg-blue-900 px-6 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {generating
             ? "Generating 3 Options…"
@@ -1337,7 +1185,7 @@ function BalancedBuilder({
             </p>
 
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="mt-5 grid gap-4 sm:grid-cols-3">
               {generatedOptions.map(
                 (option, index) => {
                   const isActive =
@@ -1435,7 +1283,7 @@ function BalancedBuilder({
                   </p>
 
 
-                  <p className="mt-1 text-xl font-bold text-blue-900 sm:text-2xl">
+                  <p className="mt-1 text-2xl font-bold text-blue-900">
                     {generatedOptions.every(
                       (item) =>
                         item.rawScore ===
@@ -1473,7 +1321,7 @@ function BalancedBuilder({
                   type="button"
                   disabled={savingFinalTeams}
                   onClick={onSaveFinalTeams}
-                  className="w-full rounded-lg bg-green-700 px-5 py-3 text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+                  className="rounded-lg bg-green-700 px-5 py-3 text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {savingFinalTeams
                     ? "Saving Final Teams…"
@@ -2232,7 +2080,7 @@ function GeneratedTeamCard({
       </div>
 
 
-      <div className="grid grid-cols-2 gap-2 border-b border-slate-200 p-3 text-sm sm:gap-3 sm:p-4">
+      <div className="grid grid-cols-2 gap-3 border-b border-slate-200 p-4 text-sm">
         <Metric
           label="Players"
           value={generatedTeam.players.length.toString()}
@@ -2498,16 +2346,18 @@ function SummaryCard({
   detail: string;
 }) {
   return (
-    <article className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-      <p className="text-xs font-medium text-slate-600 sm:text-sm">
+    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm font-medium text-slate-600">
         {label}
       </p>
 
-      <p className="mt-1 text-2xl font-bold text-blue-900">
+
+      <p className="mt-2 text-3xl font-bold text-blue-900">
         {value}
       </p>
 
-      <p className="mt-0.5 text-[11px] leading-4 text-slate-500">
+
+      <p className="mt-1 text-xs text-slate-500">
         {detail}
       </p>
     </article>
@@ -2528,7 +2378,7 @@ function WarningCard({
 }) {
   return (
     <article
-      className={`rounded-xl border p-3 sm:p-4 ${
+      className={`rounded-xl border p-4 ${
         good
           ? "border-green-200 bg-green-50"
           : "border-amber-200 bg-amber-50"
@@ -2626,6 +2476,3 @@ function AccessMessage({
     </main>
   );
 }
-
-
-
