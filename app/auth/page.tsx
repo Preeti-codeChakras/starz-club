@@ -232,7 +232,7 @@ export default function AuthPage() {
                 onChange={(event) =>
                   setEmail(event.target.value)
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:ring-blue-200"
               />
             </label>
 
@@ -254,7 +254,7 @@ export default function AuthPage() {
                 onChange={(event) =>
                   setPassword(event.target.value)
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:ring-blue-200"
               />
 
               <p className="mt-1 text-xs text-slate-500">
