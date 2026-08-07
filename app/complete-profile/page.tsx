@@ -385,7 +385,7 @@ export default function CompleteProfilePage() {
                 />
 
                 <span className="text-sm font-medium text-slate-700 bg-white text-slate-900 placeholder:text-slate-400 placeholder:opacity-100">
-                  I can keep wickets
+                  I can do wicketkeeping
                 </span>
               </label>
 
