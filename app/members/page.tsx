@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { uploadMemberPhoto } from "@/lib/supabase/storage";
+import AlertMessage from "@/components/AlertMessage";
 
 type AppRole =
   | "Member"
@@ -54,6 +55,7 @@ const initialForm: MemberForm = {
   photo_url: "",
 };
 
+
 const inputClassName =
   "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200";
 
@@ -76,6 +78,9 @@ function normalizeRole(role: string | null | undefined): AppRole {
 }
 
 export default function MembersPage() {
+  const [messageType, setMessageType] = useState<
+  "success" | "error" | "warning" | "info"
+>("info");
   const [members, setMembers] = useState<Member[]>([]);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<MemberForm>(initialForm);
@@ -110,6 +115,7 @@ export default function MembersPage() {
   );
 
   if (error) {
+    setMessageType("error");
     setMessage(
       `Unable to load members: ${error.message}`
     );
@@ -200,6 +206,7 @@ export default function MembersPage() {
     const phone = form.phone.trim();
 
     if (!name) {
+      setMessageType("error");
       setMessage("Member name is required.");
       return;
     }
@@ -250,6 +257,7 @@ if (editingMemberId) {
     );
 
   if (updateError) {
+    setMessageType("error");
     setMessage(
       `Unable to update member: ${updateError.message}`
     );
@@ -260,6 +268,7 @@ if (editingMemberId) {
   resetForm();
   await loadMembers();
 
+  setMessageType("success");
   setMessage(
     "Member details and app role updated successfully."
   );
@@ -602,11 +611,12 @@ if (editingMemberId) {
             </div>
           </form>
 
-          {message && (
-            <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
-              {message}
-            </p>
-          )}
+      {message && (
+  <AlertMessage
+    type={messageType}
+    message={message}
+  />
+)}
         </section>
 
         <section className="mt-10">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import AlertMessage from "@/components/AlertMessage";
 
 type AuthMode = "login" | "signup";
 
@@ -20,6 +21,9 @@ export default function AuthPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+const [messageType, setMessageType] = useState<
+  "success" | "error" | "warning" | "info"
+>("info");
 
   async function routeSignedInUser(userId: string) {
     const { data: profile, error: profileError } =
@@ -113,6 +117,7 @@ export default function AuthPage() {
         });
 
       if (error) {
+        setMessageType("error");
         setMessage(
           `Unable to create account: ${error.message}`
         );
@@ -278,9 +283,7 @@ export default function AuthPage() {
           </form>
 
           {message && (
-            <p className="mt-5 rounded-lg bg-slate-50 p-4 text-sm text-slate-700">
-              {message}
-            </p>
+           <AlertMessage type={messageType} message={message} />
           )}
         </section>
       </div>
