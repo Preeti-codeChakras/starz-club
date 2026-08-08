@@ -13,12 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Starz Cricket Club App",
+  title: "Starz Cricket Club WebApp",
   description:
     "Manage player availability, skills, and generate balanced cricket teams.",
 
   openGraph: {
-    title: "Starz Cricket Club App",
+    title: "Starz Cricket Club WebApp",
     description:
       "From player availability and skill ratings to fair and balanced team generation.",
     url: "https://starz-club.vercel.app",
