@@ -66,12 +66,22 @@ export function useCurrentProfile() {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (error || !data) {
-      console.error("Unable to load profile:", error);
-      setProfile(null);
-      setLoadingProfile(false);
-      return;
-    }
+if (error) {
+  console.error(
+    "Unable to load profile:",
+    error
+  );
+  setProfile(null);
+  setLoadingProfile(false);
+  return;
+}
+
+if (!data) {
+  setProfile(null);
+  setLoadingProfile(false);
+  return;
+}
+
 
     const typedData =
       data as unknown as ProfileQueryResult;
@@ -115,15 +125,27 @@ export function useCurrentProfile() {
   useEffect(() => {
     void loadProfile();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void loadProfile();
-    });
+  const {
+  data: { subscription },
+} = supabase.auth.onAuthStateChange(
+  (event) => {
+    if (event === "SIGNED_OUT") {
+      setProfile(null);
+      setLoadingProfile(false);
+      return;
+    }
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Run outside the auth callback to avoid Supabase deadlock
+    setTimeout(() => {
+      void loadProfile();
+    }, 0);
+  }
+);
+
+return () => {
+  subscription.unsubscribe();
+};
+
   }, []);
 
   return {

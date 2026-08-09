@@ -2,6 +2,7 @@ import Link from "next/link";
 import UserMenu from "@/components/UserMenu";
 import ProfileCompletionWarning from "@/components/ProfileCompleteWarning";
 import PendingApprovalsCard from "@/components/PendingApprovalsCard";
+import BirthdayBanner from "@/components/BirthdayBanner";
 
 type MenuItem = {
   name: string;
@@ -97,39 +98,56 @@ const menuSections: MenuSection[] = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50">
-      {/* HEADER */}
-      <header className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-700 text-white">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8 sm:py-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {/* CLUB BRAND */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl shadow-sm backdrop-blur-sm sm:h-12 sm:w-12 sm:text-3xl">
-                ⭐
-              </div>
+    {/* HEADER */}
+<header className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-700 text-white">
+  <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8 sm:py-6">
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-              <div>
-                <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
-                  Starz Club
-                </h1>
-
-                <p className="mt-0.5 text-xs text-blue-100 sm:text-sm">
-                  Cricket, community and connection
-                </p>
-              </div>
-            </div>
-
-            {/* USER INFORMATION */}
-            <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm sm:bg-transparent sm:p-0">
-              <UserMenu />
-            </div>
-          </div>
+      {/* CLUB BRAND */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl shadow-sm backdrop-blur-sm sm:h-12 sm:w-12 sm:text-3xl">
+          ⭐
         </div>
-      </header>
+
+        <div>
+          {/* TITLE + ABOUT US */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
+              Starz Club
+            </h1>
+
+            <Link
+              href="/about"
+              className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm"
+            >
+              About Us
+            </Link>
+          </div>
+
+          <p className="mt-0.5 text-xs text-blue-100 sm:text-sm">
+            Cricket, community and connection
+          </p>
+        </div>
+      </div>
+
+      {/* USER INFORMATION */}
+      <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm sm:bg-transparent sm:p-0">
+        <UserMenu />
+      </div>
+
+    </div>
+  </div>
+</header>
+
+
 
       {/* MAIN CONTENT */}
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
         {/* PROFILE COMPLETION WARNING */}
         <ProfileCompletionWarning />
+    
+        <BirthdayBanner />
+<div className="space-y-10"></div>
         <PendingApprovalsCard />
         <div className="space-y-10">
           {menuSections.map((section) => (
@@ -259,12 +277,25 @@ export default function Home() {
       </div>
 
       {/* FOOTER */}
-      <footer className="mt-8 border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-7xl px-4 py-5 text-center text-xs text-slate-500 sm:px-10 sm:text-sm">
-          © 2026 Starz Club ⭐
-          A family surviving on countless cups of chai ☕ and love for cricket 🏏 
-        </div>
-      </footer>
+    <footer className="mt-8 border-t border-slate-200 bg-white">
+  <div className="mx-auto max-w-7xl px-4 py-5 text-center text-xs text-slate-500 sm:px-10 sm:text-sm">
+    <p>
+      © 2026 Starz Club ⭐
+      <br />
+      A family surviving on countless cups of chai ☕ and love for cricket 🏏
+    </p>
+
+    <div className="mt-3 flex justify-center gap-4">
+      <Link
+        href="/privacy"
+        className="font-medium text-blue-700 hover:underline"
+      >
+        Privacy Policy
+      </Link>
+    </div>
+  </div>
+</footer>
+
       <div
   className="
     hidden
