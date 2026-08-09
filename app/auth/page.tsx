@@ -21,9 +21,9 @@ export default function AuthPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
-const [messageType, setMessageType] = useState<
-  "success" | "error" | "warning" | "info"
->("info");
+  const [messageType, setMessageType] = useState<
+    "success" | "error" | "warning" | "info"
+  >("info");
 
   async function routeSignedInUser(userId: string) {
     const { data: profile, error: profileError } =
@@ -34,6 +34,7 @@ const [messageType, setMessageType] = useState<
         .maybeSingle();
 
     if (profileError) {
+      setMessageType("error");
       setMessage(
         `Signed in, but unable to load your profile: ${profileError.message}`
       );
@@ -54,6 +55,7 @@ const [messageType, setMessageType] = useState<
         .maybeSingle<MemberStatus>();
 
     if (memberError) {
+      setMessageType("error");
       setMessage(
         `Signed in, but unable to load your member status: ${memberError.message}`
       );
@@ -86,17 +88,21 @@ const [messageType, setMessageType] = useState<
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+
     setMessage("");
+    setMessageType("info");
 
     const normalizedEmail =
       email.trim().toLowerCase();
 
     if (!normalizedEmail) {
+      setMessageType("error");
       setMessage("Email is required.");
       return;
     }
 
     if (password.length < 6) {
+      setMessageType("error");
       setMessage(
         "Password must contain at least 6 characters."
       );
@@ -128,6 +134,7 @@ const [messageType, setMessageType] = useState<
       if (data.session && data.user) {
         await routeSignedInUser(data.user.id);
       } else {
+        setMessageType("success");
         setMessage(
           "Account created. Please check your email and confirm your account before signing in."
         );
@@ -144,6 +151,7 @@ const [messageType, setMessageType] = useState<
       });
 
     if (error) {
+      setMessageType("error");
       setMessage(
         `Unable to sign in: ${error.message}`
       );
@@ -152,6 +160,7 @@ const [messageType, setMessageType] = useState<
     }
 
     if (!data.user) {
+      setMessageType("error");
       setMessage(
         "Signed in, but the user account could not be loaded."
       );
@@ -166,11 +175,12 @@ const [messageType, setMessageType] = useState<
   function changeMode(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage("");
+    setMessageType("info");
     setPassword("");
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-5 py-8 sm:px-8 sm:py-10">
+    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-md">
         <Link
           href="/"
@@ -181,7 +191,9 @@ const [messageType, setMessageType] = useState<
 
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
           <div className="text-center">
-            <div className="text-4xl">🏏</div>
+            <div className="text-4xl">
+              🏏
+            </div>
 
             <h1 className="mt-4 text-3xl font-bold text-blue-900">
               Starz Club
@@ -197,7 +209,9 @@ const [messageType, setMessageType] = useState<
           <div className="mt-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
             <button
               type="button"
-              onClick={() => changeMode("login")}
+              onClick={() =>
+                changeMode("login")
+              }
               className={`rounded-md px-4 py-2 text-sm font-medium ${
                 mode === "login"
                   ? "bg-white text-blue-900 shadow-sm"
@@ -209,7 +223,9 @@ const [messageType, setMessageType] = useState<
 
             <button
               type="button"
-              onClick={() => changeMode("signup")}
+              onClick={() =>
+                changeMode("signup")
+              }
               className={`rounded-md px-4 py-2 text-sm font-medium ${
                 mode === "signup"
                   ? "bg-white text-blue-900 shadow-sm"
@@ -237,7 +253,7 @@ const [messageType, setMessageType] = useState<
                 onChange={(event) =>
                   setEmail(event.target.value)
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:ring-blue-200"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </label>
 
@@ -257,9 +273,11 @@ const [messageType, setMessageType] = useState<
                 }
                 value={password}
                 onChange={(event) =>
-                  setPassword(event.target.value)
+                  setPassword(
+                    event.target.value
+                  )
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:ring-blue-200"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
 
               <p className="mt-1 text-xs text-slate-500">
@@ -267,10 +285,41 @@ const [messageType, setMessageType] = useState<
               </p>
             </label>
 
+            {mode === "signup" && (
+              <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <input
+                  id="privacy"
+                  type="checkbox"
+                  required
+                  className="mt-1 h-4 w-4 shrink-0"
+                />
+
+                <label
+                  htmlFor="privacy"
+                  className="text-sm leading-6 text-slate-700"
+                >
+                  I acknowledge that my
+                  information will be used for
+                  Starz Club membership and club
+                  administration as described in
+                  the{" "}
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-blue-700 hover:underline"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </label>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={submitting}
-              className="mt-2 rounded-lg bg-blue-900 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-2 rounded-lg bg-blue-900 px-5 py-3 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting
                 ? mode === "login"
@@ -283,7 +332,10 @@ const [messageType, setMessageType] = useState<
           </form>
 
           {message && (
-           <AlertMessage type={messageType} message={message} />
+            <AlertMessage
+              type={messageType}
+              message={message}
+            />
           )}
         </section>
       </div>
