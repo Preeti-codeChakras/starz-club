@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import SessionTimeout from "@/components/SessionTimeout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
     title: "Starz Cricket Club WebApp",
     description:
       "From player availability and skill ratings to fair and balanced team generation.",
-    url: "https://starz-club.vercel.app",
+    url: "https://www.starzcricketclub.com",
     siteName: "Starz Cricket Club",
     type: "website",
 
@@ -46,7 +47,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body>{children}</body>
+      <body className="min-h-full">
+        <SessionTimeout />
+
+        {children}
+      </body>
     </html>
   );
 }
+

@@ -1,28 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
-const TIMEOUT_MS = 2 * 60 * 1000;
+
+// After testing, change to 1 hours:
+const TIMEOUT_MS = 1 * 60 * 60 * 1000;
+
 const LAST_ACTIVITY_KEY = "starz-last-activity";
 
 export default function SessionTimeout() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const loggingOutRef = useRef(false);
+  const intervalRef =
+    useRef<ReturnType<typeof setInterval> | null>(
+      null
+    );
+
   useEffect(() => {
-    if (
-      pathname === "/auth" ||
-      pathname === "/privacy"
-    ) {
+    const publicPages = [
+      "/auth",
+      "/privacy",
+      "/about",
+    ];
+
+    if (publicPages.includes(pathname)) {
       return;
     }
 
-    let intervalId: ReturnType<typeof setInterval>;
+    async function logout() {
+      if (loggingOutRef.current) {
+        return;
+      }
 
-    async function logoutUser() {
-      localStorage.removeItem(LAST_ACTIVITY_KEY);
+      loggingOutRef.current = true;
+
+      console.log("SESSION TIMEOUT: signing out");
+
+      localStorage.removeItem(
+        LAST_ACTIVITY_KEY
+      );
 
       const { error } =
         await supabase.auth.signOut({
@@ -31,71 +51,86 @@ export default function SessionTimeout() {
 
       if (error) {
         console.error(
-          "Unable to sign out:",
+          "Session timeout sign-out failed:",
           error
         );
+
+        loggingOutRef.current = false;
         return;
       }
 
-      router.replace("/auth");
-      router.refresh();
+      console.log(
+        "SESSION TIMEOUT: signed out successfully"
+      );
+
+      // Use a hard navigation so nothing
+      // from the authenticated React tree remains.
+      window.location.href = "/auth";
     }
 
     function recordActivity() {
       localStorage.setItem(
         LAST_ACTIVITY_KEY,
-        String(Date.now())
+        Date.now().toString()
       );
+    }
+
+    function checkTimeout() {
+      const stored =
+        localStorage.getItem(
+          LAST_ACTIVITY_KEY
+        );
+
+      if (!stored) {
+        recordActivity();
+        return;
+      }
+
+      const lastActivity =
+        Number(stored);
+
+      const inactiveFor =
+        Date.now() - lastActivity;
+
+      console.log(
+        "Inactive:",
+        Math.floor(inactiveFor / 1000),
+        "seconds"
+      );
+
+      if (
+        inactiveFor >= TIMEOUT_MS
+      ) {
+        void logout();
+      }
     }
 
     async function initialize() {
       const {
         data: { session },
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
       if (!session) {
         return;
       }
 
-      const saved =
+      const stored =
         localStorage.getItem(
           LAST_ACTIVITY_KEY
         );
 
-      if (!saved) {
+      if (!stored) {
         recordActivity();
       }
 
-      intervalId = setInterval(() => {
-        const lastActivity =
-          Number(
-            localStorage.getItem(
-              LAST_ACTIVITY_KEY
-            )
-          );
+      checkTimeout();
 
-        if (!lastActivity) {
-          recordActivity();
-          return;
-        }
-
-        const inactiveFor =
-          Date.now() - lastActivity;
-
-        console.log(
-          "Inactive for:",
-          Math.floor(
-            inactiveFor / 1000
-          ),
-          "seconds"
+      intervalRef.current =
+        setInterval(
+          checkTimeout,
+          1000
         );
-
-        if (
-          inactiveFor >= TIMEOUT_MS
-        ) {
-          void logoutUser();
-        }
-      }, 5000);
     }
 
     void initialize();
@@ -110,9 +145,26 @@ export default function SessionTimeout() {
     events.forEach((eventName) => {
       window.addEventListener(
         eventName,
-        recordActivity
+        recordActivity,
+        {
+          passive: true,
+        }
       );
     });
+
+    function handleVisibilityChange() {
+      if (
+        document.visibilityState ===
+        "visible"
+      ) {
+        checkTimeout();
+      }
+    }
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    );
 
     return () => {
       events.forEach((eventName) => {
@@ -122,8 +174,15 @@ export default function SessionTimeout() {
         );
       });
 
-      if (intervalId) {
-        clearInterval(intervalId);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      );
+
+      if (intervalRef.current) {
+        clearInterval(
+          intervalRef.current
+        );
       }
     };
   }, [pathname, router]);
