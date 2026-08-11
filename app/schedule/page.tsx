@@ -9,6 +9,16 @@ type Team = {
   name: string;
 };
 
+type Member = {
+  id: string;
+  name: string;
+};
+
+type SeasonTeamMember = {
+  team_id: string;
+  member_id: string;
+};
+
 type Season = {
   id: string;
   name: string;
@@ -17,7 +27,7 @@ type Season = {
 type ClubEvent = {
   id: string;
   title: string;
-  event_type: "Practice" | "Game" | "Club Event";
+  event_type: "Practice" | "Game" | "Club Event" | "Umpiring Assignment";
   starts_at: string;
   ends_at: string | null;
   season_id: string | null;
@@ -27,11 +37,15 @@ type ClubEvent = {
   location_address: string | null;
   maps_url: string | null;
   notes: string | null;
+  umpiring_team_id: string | null;
+  umpire_member_id: string | null;
+  umpire_status: "Pending" | "Confirmed" | "Declined";
+  umpire_notes: string | null;
 };
 
 type EventForm = {
   title: string;
-  event_type: "Practice" | "Game" | "Club Event";
+  event_type: "Practice" | "Game" | "Club Event" | "Umpiring Assignment";
   starts_at: string;
   ends_at: string;
   team_id: string;
@@ -40,6 +54,10 @@ type EventForm = {
   location_address: string;
   maps_url: string;
   notes: string;
+  umpiring_team_id: string;
+  umpire_member_id: string;
+  umpire_status: "Pending" | "Confirmed" | "Declined";
+  umpire_notes: string;
 };
 
 const initialForm: EventForm = {
@@ -53,11 +71,19 @@ const initialForm: EventForm = {
   location_address: "",
   maps_url: "",
   notes: "",
+  umpiring_team_id: "",
+  umpire_member_id: "",
+  umpire_status: "Pending",
+  umpire_notes: "",
 };
 
 export default function SchedulePage() {
   const [events, setEvents] = useState<ClubEvent[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [seasonTeamMembers, setSeasonTeamMembers] = useState<
+    SeasonTeamMember[]
+  >([]);
   const [activeSeason, setActiveSeason] = useState<Season | null>(null);
 
   const [form, setForm] = useState<EventForm>(initialForm);
@@ -77,7 +103,8 @@ export default function SchedulePage() {
     setLoading(true);
     setMessage("");
 
-    const [eventsResult, teamsResult, seasonResult] = await Promise.all([
+    const [eventsResult, teamsResult, membersResult, seasonResult] =
+      await Promise.all([
       supabase
         .from("events")
         .select(
@@ -93,13 +120,22 @@ export default function SchedulePage() {
             location_name,
             location_address,
             maps_url,
-            notes
+            notes,
+            umpiring_team_id,
+            umpire_member_id,
+            umpire_status,
+            umpire_notes
           `
         )
         .order("starts_at", { ascending: true }),
 
       supabase
         .from("teams")
+        .select("id, name")
+        .order("name"),
+
+      supabase
+        .from("members")
         .select("id, name")
         .order("name"),
 
@@ -127,12 +163,44 @@ export default function SchedulePage() {
       setTeams(teamsResult.data ?? []);
     }
 
+    if (membersResult.error) {
+      setMessage(
+        `Unable to load members: ${membersResult.error.message}`
+      );
+    } else {
+      setMembers((membersResult.data ?? []) as Member[]);
+    }
+
     if (seasonResult.error) {
       setMessage(
         `Unable to load active season: ${seasonResult.error.message}`
       );
+      setActiveSeason(null);
+      setSeasonTeamMembers([]);
     } else {
-      setActiveSeason(seasonResult.data);
+      const season = seasonResult.data as Season | null;
+      setActiveSeason(season);
+
+      if (season?.id) {
+        const { data: assignmentRows, error: assignmentError } =
+          await supabase
+            .from("season_team_members")
+            .select("team_id, member_id")
+            .eq("season_id", season.id);
+
+        if (assignmentError) {
+          setMessage(
+            `Unable to load team rosters: ${assignmentError.message}`
+          );
+          setSeasonTeamMembers([]);
+        } else {
+          setSeasonTeamMembers(
+            (assignmentRows ?? []) as SeasonTeamMember[]
+          );
+        }
+      } else {
+        setSeasonTeamMembers([]);
+      }
     }
 
     setLoading(false);
@@ -163,6 +231,13 @@ export default function SchedulePage() {
       location_address: event.location_address ?? "",
       maps_url: event.maps_url ?? "",
       notes: event.notes ?? "",
+      umpiring_team_id:
+        event.event_type === "Umpiring Assignment"
+          ? event.team_id ?? event.umpiring_team_id ?? ""
+          : event.umpiring_team_id ?? "",
+      umpire_member_id: event.umpire_member_id ?? "",
+      umpire_status: event.umpire_status ?? "Pending",
+      umpire_notes: event.umpire_notes ?? "",
     });
 
     setMessage("");
@@ -223,6 +298,39 @@ export default function SchedulePage() {
       }
     }
 
+    if (
+      form.event_type === "Game" &&
+      form.umpiring_team_id &&
+      form.umpiring_team_id === form.team_id
+    ) {
+      setMessage(
+        "The umpiring team must be different from the Starz team playing this game."
+      );
+      return;
+    }
+
+    if (
+      form.event_type === "Umpiring Assignment" &&
+      !form.team_id
+    ) {
+      setMessage(
+        "Please select the Starz team responsible for this umpiring assignment."
+      );
+      return;
+    }
+
+    if (
+      (form.event_type === "Game" ||
+        form.event_type === "Umpiring Assignment") &&
+      form.umpire_status === "Confirmed" &&
+      !form.umpire_member_id
+    ) {
+      setMessage(
+        "Please select an umpire before marking the assignment Confirmed."
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     const eventData = {
@@ -237,6 +345,27 @@ export default function SchedulePage() {
       location_address: form.location_address.trim() || null,
       maps_url: form.maps_url.trim() || null,
       notes: form.notes.trim() || null,
+      umpiring_team_id:
+        form.event_type === "Umpiring Assignment"
+          ? form.team_id || null
+          : form.event_type === "Game"
+            ? form.umpiring_team_id || null
+            : null,
+      umpire_member_id:
+        form.event_type === "Game" ||
+        form.event_type === "Umpiring Assignment"
+          ? form.umpire_member_id || null
+          : null,
+      umpire_status:
+        form.event_type === "Game" ||
+        form.event_type === "Umpiring Assignment"
+          ? form.umpire_status
+          : "Pending",
+      umpire_notes:
+        form.event_type === "Game" ||
+        form.event_type === "Umpiring Assignment"
+          ? form.umpire_notes.trim() || null
+          : null,
     };
 
     const { error } = editingEventId
@@ -312,6 +441,40 @@ export default function SchedulePage() {
       "Unknown team"
     );
   }
+
+  function getMemberName(memberId: string | null) {
+    if (!memberId) {
+      return "Not assigned";
+    }
+
+    return (
+      members.find((member) => member.id === memberId)?.name ??
+      "Unknown member"
+    );
+  }
+
+  function getMembersForTeam(teamId: string) {
+    if (!teamId) {
+      return [];
+    }
+
+    const memberIds = new Set(
+      seasonTeamMembers
+        .filter((row) => row.team_id === teamId)
+        .map((row) => row.member_id)
+    );
+
+    return members.filter((member) => memberIds.has(member.id));
+  }
+
+  const umpiringRosterTeamId =
+    form.event_type === "Umpiring Assignment"
+      ? form.team_id
+      : form.umpiring_team_id;
+
+  const availableUmpires = getMembersForTeam(
+    umpiringRosterTeamId
+  );
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10">
@@ -437,6 +600,44 @@ export default function SchedulePage() {
                         </a>
                       )}
 
+                      {(event.event_type === "Game" ||
+                        event.event_type === "Umpiring Assignment") && (
+                        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                          <p className="font-semibold text-amber-900">
+                            🏏 Umpiring Assignment
+                          </p>
+
+                          <p className="mt-2 text-sm text-slate-700">
+                            <strong>
+                              {event.event_type === "Umpiring Assignment"
+                                ? "Responsible Starz team:"
+                                : "Neutral team:"}
+                            </strong>{" "}
+                            {event.umpiring_team_id
+                              ? getTeamName(event.umpiring_team_id)
+                              : event.team_id
+                                ? getTeamName(event.team_id)
+                                : "Not assigned"}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-700">
+                            <strong>Umpire:</strong>{" "}
+                            {getMemberName(event.umpire_member_id)}
+                          </p>
+
+                          <p className="mt-1 text-sm text-slate-700">
+                            <strong>Status:</strong>{" "}
+                            {event.umpire_status || "Pending"}
+                          </p>
+
+                          {event.umpire_notes && (
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">
+                              {event.umpire_notes}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
                       {event.notes && (
                         <p className="mt-4 whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
                           {event.notes}
@@ -523,6 +724,20 @@ export default function SchedulePage() {
                       event_type:
                         event.target
                           .value as EventForm["event_type"],
+                      ...(event.target.value === "Umpiring Assignment"
+                        ? {
+                            umpiring_team_id: form.team_id,
+                            umpire_member_id: "",
+                            umpire_status: "Pending" as const,
+                          }
+                        : event.target.value !== "Game"
+                          ? {
+                              umpiring_team_id: "",
+                              umpire_member_id: "",
+                              umpire_status: "Pending" as const,
+                              umpire_notes: "",
+                            }
+                          : {}),
                     })
                   }
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -533,6 +748,9 @@ export default function SchedulePage() {
                   <option value="Game">Game</option>
                   <option value="Club Event">
                     Club Event
+                  </option>
+                  <option value="Umpiring Assignment">
+                    Umpiring Assignment
                   </option>
                 </select>
               </label>
@@ -578,7 +796,9 @@ export default function SchedulePage() {
 
               <label>
                 <span className="text-sm font-medium text-slate-700">
-                  Team
+                  {form.event_type === "Umpiring Assignment"
+                    ? "Starz team responsible for umpiring *"
+                    : "Team"}
                 </span>
 
                 <select
@@ -587,12 +807,21 @@ export default function SchedulePage() {
                     setForm({
                       ...form,
                       team_id: event.target.value,
+                      ...(form.event_type === "Umpiring Assignment"
+                        ? {
+                            umpiring_team_id: event.target.value,
+                            umpire_member_id: "",
+                            umpire_status: "Pending" as const,
+                          }
+                        : {}),
                     })
                   }
                   className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
                 >
                   <option value="">
-                    Entire Starz Club
+                    {form.event_type === "Umpiring Assignment"
+                      ? "Select responsible Starz team"
+                      : "Entire Starz Club"}
                   </option>
 
                   {teams.map((team) => (
@@ -606,24 +835,246 @@ export default function SchedulePage() {
                 </select>
               </label>
 
-              <label>
-                <span className="text-sm font-medium text-slate-700">
-                  Opponent
-                </span>
+              {form.event_type !== "Umpiring Assignment" && (
+                <label>
+                  <span className="text-sm font-medium text-slate-700">
+                    Opponent
+                  </span>
 
-                <input
-                  type="text"
-                  placeholder="For games only"
-                  value={form.opponent}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      opponent: event.target.value,
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                />
-              </label>
+                  <input
+                    type="text"
+                    placeholder="For games only"
+                    value={form.opponent}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        opponent: event.target.value,
+                      })
+                    }
+                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                  />
+                </label>
+              )}
+
+              {form.event_type === "Umpiring Assignment" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <h3 className="font-semibold text-amber-900">
+                    🏏 Umpiring Assignment
+                  </h3>
+
+                  <p className="mt-1 text-xs text-slate-600">
+                    The Team field above is the Starz team responsible for this
+                    external match. Assign the umpire from that team's confirmed
+                    season roster.
+                  </p>
+
+                  <div className="mt-4 grid gap-4">
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Assigned umpire
+                      </span>
+
+                      <select
+                        value={form.umpire_member_id}
+                        disabled={!form.team_id}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_member_id: event.target.value,
+                            umpire_status: "Pending",
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100 disabled:text-slate-500"
+                      >
+                        <option value="">
+                          {form.team_id
+                            ? "Select umpire"
+                            : "Choose responsible Starz team first"}
+                        </option>
+
+                        {availableUmpires.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {form.team_id && availableUmpires.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-800">
+                          No confirmed season roster members were found for this team.
+                        </p>
+                      )}
+                    </label>
+
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Umpire status
+                      </span>
+
+                      <select
+                        value={form.umpire_status}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_status: event.target
+                              .value as EventForm["umpire_status"],
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Declined">Declined</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Umpiring notes
+                      </span>
+
+                      <textarea
+                        rows={3}
+                        placeholder="Arrival time, umpiring instructions, contact details..."
+                        value={form.umpire_notes}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_notes: event.target.value,
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {form.event_type === "Game" && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <h3 className="font-semibold text-amber-900">
+                    🏏 Umpiring Assignment
+                  </h3>
+
+                  <p className="mt-1 text-xs text-slate-600">
+                    Choose the neutral team responsible for umpiring, then
+                    assign an umpire from that team's confirmed season roster.
+                  </p>
+
+                  <div className="mt-4 grid gap-4">
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Neutral umpiring team
+                      </span>
+
+                      <select
+                        value={form.umpiring_team_id}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpiring_team_id: event.target.value,
+                            umpire_member_id: "",
+                            umpire_status: "Pending",
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      >
+                        <option value="">Not assigned yet</option>
+
+                        {teams
+                          .filter((team) => team.id !== form.team_id)
+                          .map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Assigned umpire
+                      </span>
+
+                      <select
+                        value={form.umpire_member_id}
+                        disabled={!form.umpiring_team_id}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_member_id: event.target.value,
+                            umpire_status: event.target.value
+                              ? "Pending"
+                              : "Pending",
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100 disabled:text-slate-500"
+                      >
+                        <option value="">
+                          {form.umpiring_team_id
+                            ? "Select umpire"
+                            : "Choose umpiring team first"}
+                        </option>
+
+                        {availableUmpires.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {form.umpiring_team_id &&
+                        availableUmpires.length === 0 && (
+                          <p className="mt-1 text-xs text-amber-800">
+                            No confirmed season roster members were found for
+                            this team.
+                          </p>
+                        )}
+                    </label>
+
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Umpire status
+                      </span>
+
+                      <select
+                        value={form.umpire_status}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_status: event.target
+                              .value as EventForm["umpire_status"],
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="Declined">Declined</option>
+                      </select>
+                    </label>
+
+                    <label>
+                      <span className="text-sm font-medium text-slate-700">
+                        Umpiring notes
+                      </span>
+
+                      <textarea
+                        rows={3}
+                        placeholder="Arrival time, umpiring instructions, contact details..."
+                        value={form.umpire_notes}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            umpire_notes: event.target.value,
+                          })
+                        }
+                        className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
 
               <label>
                 <span className="text-sm font-medium text-slate-700">
@@ -748,7 +1199,9 @@ function EventTypeBadge({
       ? "🏏 Game"
       : type === "Practice"
         ? "🥎 Practice"
-        : "🎉 Club Event";
+        : type === "Umpiring Assignment"
+          ? "🧑‍⚖️ Umpiring Assignment"
+          : "🎉 Club Event";
 
   return (
     <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-900">
@@ -778,3 +1231,5 @@ function convertToDateTimeInput(value: string) {
 
   return localDate.toISOString().slice(0, 16);
 }
+
+
