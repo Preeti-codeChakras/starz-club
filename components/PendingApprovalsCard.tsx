@@ -42,9 +42,14 @@ export default function PendingApprovalsCard() {
     void loadPendingCount();
   }, [loadingProfile, loadPendingCount]);
 
-  if (loadingProfile || loading || !isAdmin) {
-    return null;
-  }
+ if (
+  loadingProfile ||
+  loading ||
+  !isAdmin ||
+  pendingCount === 0
+) {
+  return null;
+}
 
   return (
     <Link
