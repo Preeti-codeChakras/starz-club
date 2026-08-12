@@ -111,51 +111,94 @@ export default async function TeamsPage() {
           </section>
         )}
 
-        {/* TEAM HISTORY CARD */}
-        <section className="mt-8">
-          <Link
-            href="/teams/history"
-            className="group block overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-400 hover:shadow-md"
-          >
-            <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-              <div className="flex items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-3xl">
-                  🕘
-                </div>
+       {/* TEAM HISTORY + PLAYER STATS */}
+<section className="mt-8">
+  <div className="grid gap-5 lg:grid-cols-2">
+    {/* TEAM HISTORY */}
+    <Link
+      href="/teams/history"
+      className="group block overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-400 hover:shadow-md"
+    >
+      <div className="flex h-full flex-col justify-between gap-5 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+            🕘
+          </div>
 
-                <div>
-                  <p className="text-s font-semibold uppercase tracking-wider text-blue-700 ">
-                    Historical comparison
-                  </p>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+              Historical comparison
+            </p>
 
-                  <h2 className="mt-1 text-2xl font-bold text-slate-900">
-                    Team History
-                  </h2>
+            <h2 className="mt-1 text-xl font-bold text-slate-900">
+              Team History
+            </h2>
 
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-700 sm:text-base px-5 py-3 font-semibold">
-                    Compare team assignments from the
-                    previous two seasons and identify
-                    players who have repeatedly played
-                    together.
-                  </p>
+            <p className="mt-3 text-sm leading-6 text-slate-700">
+              Compare previous season assignments and identify
+              players who have repeatedly played together.
+            </p>
 
-                  <p className="mt-3 text-sm text-blue-700 px-5 py-3 font-semibold">
-                    This helps the club rotate players and
-                    avoid the same groups staying together
-                    every season.
-                  </p>
-                </div>
-              </div>
+            <p className="mt-2 text-sm font-medium text-blue-700">
+              Helps rotate players and keep teams fresh each season.
+            </p>
+          </div>
+        </div>
 
-              <div className="flex shrink-0 items-center gap-2 rounded-xl bg-blue-900 px-5 py-3 font-semibold text-white transition group-hover:bg-blue-800">
-                View Team History
-                <span className="transition group-hover:translate-x-1">
-                  →
-                </span>
-              </div>
-            </div>
-          </Link>
-        </section>
+        <div className="flex justify-end">
+          <span className="inline-flex items-center gap-2 rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white transition group-hover:bg-blue-800">
+            View Team History
+            <span className="transition group-hover:translate-x-1">
+              →
+            </span>
+          </span>
+        </div>
+      </div>
+    </Link>
+
+    {/* PLAYER STATS */}
+    <Link
+      href="/player-stats"
+      className="group block overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 via-white to-blue-50 shadow-sm transition duration-200 hover:-translate-y-1 hover:border-blue-400 hover:shadow-md"
+    >
+      <div className="flex h-full flex-col justify-between gap-5 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-2xl">
+            📊
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+              Player performance
+            </p>
+
+            <h2 className="mt-1 text-xl font-bold text-slate-900">
+              Player Stats
+            </h2>
+
+            <p className="mt-3 text-sm leading-6 text-slate-700">
+              View batting and bowling statistics synced from ARCL
+              for Starz Club players.
+            </p>
+
+            <p className="mt-2 text-sm font-medium text-blue-700">
+              Useful for player development and future team balancing.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <span className="inline-flex items-center gap-2 rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white transition group-hover:bg-blue-800">
+            View Player Stats
+            <span className="transition group-hover:translate-x-1">
+              →
+            </span>
+          </span>
+        </div>
+      </div>
+    </Link>
+  </div>
+</section>
       </div>
     </main>
   );

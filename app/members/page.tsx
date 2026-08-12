@@ -21,6 +21,7 @@ type Member = {
   photo_url: string | null;
   birthday_month: number | null;
   birthday_day: number | null;
+  arcl_player_id: string | null;
   hasLinkedProfile: boolean;
 };
 
@@ -33,6 +34,7 @@ type MemberRow = {
   photo_url: string | null;
   birthday_month: number | null;
   birthday_day: number | null;
+  arcl_player_id: string | null;
   app_role: string | null;
   has_linked_profile: boolean;
 };
@@ -45,6 +47,7 @@ type MemberForm = {
   photo_url: string;
   birthday_month: string;
   birthday_day: string;
+  arcl_profile: string;
 };
 
 const initialForm: MemberForm = {
@@ -55,6 +58,7 @@ const initialForm: MemberForm = {
   photo_url: "",
   birthday_month: "",
   birthday_day: "",
+  arcl_profile: "",
 };
 
 const inputClassName =
@@ -126,6 +130,37 @@ function formatBirthday(
   );
 }
 
+function extractArclPlayerId(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const url = new URL(trimmed);
+
+    if (
+      url.hostname !== "www.arcl.org" &&
+      url.hostname !== "arcl.org"
+    ) {
+      return null;
+    }
+
+    const playerId = url.searchParams.get("player_id");
+
+    return playerId && /^\d+$/.test(playerId)
+      ? playerId
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function MembersPage() {
   const [messageType, setMessageType] = useState<
     "success" | "error" | "warning" | "info"
@@ -192,6 +227,7 @@ export default function MembersPage() {
         photo_url: member.photo_url,
         birthday_month: member.birthday_month,
         birthday_day: member.birthday_day,
+        arcl_player_id: member.arcl_player_id,
 
         hasLinkedProfile:
           member.has_linked_profile,
@@ -234,6 +270,9 @@ export default function MembersPage() {
         member.birthday_month?.toString() ?? "",
       birthday_day:
         member.birthday_day?.toString() ?? "",
+      arcl_profile: member.arcl_player_id
+        ? `https://www.arcl.org/Pages/UI/PlayerHistory.aspx?player_id=${member.arcl_player_id}`
+        : "",
     });
 
     setPhotoFile(null);
@@ -282,10 +321,22 @@ export default function MembersPage() {
     const name = form.name.trim();
     const email = form.email.trim();
     const phone = form.phone.trim();
+    const arclProfile = form.arcl_profile.trim();
+    const arclPlayerId = arclProfile
+      ? extractArclPlayerId(arclProfile)
+      : null;
 
     if (!name) {
       setMessageType("error");
       setMessage("Member name is required.");
+      return;
+    }
+
+    if (arclProfile && !arclPlayerId) {
+      setMessageType("error");
+      setMessage(
+        "Enter a valid ARCL player ID or ARCL Player History URL."
+      );
       return;
     }
 
@@ -340,6 +391,7 @@ export default function MembersPage() {
       photo_url: photoUrl || null,
       birthday_month: birthdayMonth,
       birthday_day: birthdayDay,
+      arcl_player_id: arclPlayerId,
     };
 
     if (editingMemberId) {
@@ -369,12 +421,26 @@ export default function MembersPage() {
         return;
       }
 
+      const { error: arclUpdateError } = await supabase
+        .from("members")
+        .update({ arcl_player_id: arclPlayerId })
+        .eq("id", editingMemberId);
+
+      if (arclUpdateError) {
+        setMessageType("error");
+        setMessage(
+          `Member updated, but ARCL profile could not be saved: ${arclUpdateError.message}`
+        );
+        setSubmitting(false);
+        return;
+      }
+
       resetForm();
       await loadMembers();
 
       setMessageType("success");
       setMessage(
-        "Member details, birthday, and app role updated successfully."
+        "Member details, birthday, app role, and ARCL profile updated successfully."
       );
 
       setSubmitting(false);
@@ -524,6 +590,9 @@ export default function MembersPage() {
         member.role
           .toLowerCase()
           .includes(searchText) ||
+        (member.arcl_player_id
+          ?.toLowerCase()
+          .includes(searchText) ?? false) ||
         birthdayText.includes(searchText)
       );
     });
@@ -747,6 +816,29 @@ export default function MembersPage() {
 
             <label className="sm:col-span-2">
               <span className="text-sm font-medium text-slate-700">
+                ARCL Player Profile
+              </span>
+
+              <input
+                type="text"
+                placeholder="Paste ARCL profile URL or player ID"
+                value={form.arcl_profile}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    arcl_profile: event.target.value,
+                  })
+                }
+                className={inputClassName}
+              />
+
+              <p className="mt-2 text-xs text-slate-500">
+                Optional. Paste the full ARCL Player History URL or just the player ID.
+              </p>
+            </label>
+
+            <label className="sm:col-span-2">
+              <span className="text-sm font-medium text-slate-700">
                 Member photo
               </span>
 
@@ -833,7 +925,7 @@ export default function MembersPage() {
 
           <input
             type="search"
-            placeholder="Search by name, email, phone, role, or birthday"
+            placeholder="Search by name, email, phone, role, birthday, or ARCL ID"
             value={search}
             onChange={(event) =>
               setSearch(event.target.value)
@@ -934,6 +1026,17 @@ export default function MembersPage() {
                       </p>
                     )}
 
+                    {member.arcl_player_id && (
+                      <a
+                        href={`https://www.arcl.org/Pages/UI/PlayerHistory.aspx?player_id=${member.arcl_player_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-block text-sm font-medium text-blue-700 hover:underline"
+                      >
+                        ARCL Profile #{member.arcl_player_id} →
+                      </a>
+                    )}
+
                     <div className="mt-4 flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -974,3 +1077,5 @@ export default function MembersPage() {
     </main>
   );
 }
+
+
