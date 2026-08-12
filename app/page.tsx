@@ -26,7 +26,7 @@ const menuSections: MenuSection[] = [
       {
         name: "Teams",
         icon: "🏏",
-        description: "View teams and player rosters.",
+        description: "View teams, player rosters, team history and player stats.",
         href: "/teams",
       },
       {
@@ -35,6 +35,7 @@ const menuSections: MenuSection[] = [
         description: "View and manage club members.",
         href: "/members",
       },
+
       {
         name: "Team Builder/Team Assignment",
         icon: "⚖️",
@@ -308,9 +309,9 @@ export default function Home() {
     text-sm
     font-semibold
     tracking-[0.25em]
-    text-slate-500
-    opacity-80
-    hover:text-blue-600
+    text-slate-800
+    opacity-90
+    hover:text-blue-900
     hover:opacity-100
     transition-all
     duration-300
