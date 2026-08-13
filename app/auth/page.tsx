@@ -15,68 +15,115 @@ type MemberStatus = {
 export default function AuthPage() {
   const router = useRouter();
 
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [mode, setMode] =
+    useState<AuthMode>("login");
 
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<
-    "success" | "error" | "warning" | "info"
-  >("info");
+  const [email, setEmail] =
+    useState("");
 
-  async function routeSignedInUser(userId: string) {
-    const { data: profile, error: profileError } =
-      await supabase
-        .from("profiles")
-        .select("member_id")
-        .eq("id", userId)
-        .maybeSingle();
+  const [password, setPassword] =
+    useState("");
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [messageType, setMessageType] =
+    useState<
+      "success" | "error" | "warning" | "info"
+    >("info");
+
+  async function routeSignedInUser(
+    userId: string
+  ) {
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("profiles")
+      .select("member_id")
+      .eq("id", userId)
+      .maybeSingle();
 
     if (profileError) {
       setMessageType("error");
+
       setMessage(
         `Signed in, but unable to load your profile: ${profileError.message}`
       );
+
       return;
     }
 
     if (!profile?.member_id) {
-      router.push("/complete-profile");
+      router.push(
+        "/complete-profile"
+      );
+
       router.refresh();
+
       return;
     }
 
-    const { data: member, error: memberError } =
-      await supabase
-        .from("members")
-        .select("approval_status")
-        .eq("id", profile.member_id)
-        .maybeSingle<MemberStatus>();
+    const {
+      data: member,
+      error: memberError,
+    } = await supabase
+      .from("members")
+      .select(
+        "approval_status"
+      )
+      .eq(
+        "id",
+        profile.member_id
+      )
+      .maybeSingle<MemberStatus>();
 
     if (memberError) {
       setMessageType("error");
+
       setMessage(
         `Signed in, but unable to load your member status: ${memberError.message}`
       );
+
       return;
     }
 
     if (!member) {
-      router.push("/complete-profile");
+      router.push(
+        "/complete-profile"
+      );
+
       router.refresh();
+
       return;
     }
 
-    if (member.approval_status === "Pending") {
-      router.push("/pending-approval");
+    if (
+      member.approval_status ===
+      "Pending"
+    ) {
+      router.push(
+        "/pending-approval"
+      );
+
       router.refresh();
+
       return;
     }
 
-    if (member.approval_status === "Rejected") {
-      router.push("/pending-approval");
+    if (
+      member.approval_status ===
+      "Rejected"
+    ) {
+      router.push(
+        "/pending-approval"
+      );
+
       router.refresh();
+
       return;
     }
 
@@ -93,29 +140,47 @@ export default function AuthPage() {
     setMessageType("info");
 
     const normalizedEmail =
-      email.trim().toLowerCase();
+      email
+        .trim()
+        .toLowerCase();
 
     if (!normalizedEmail) {
       setMessageType("error");
-      setMessage("Email is required.");
+
+      setMessage(
+        "Email is required."
+      );
+
       return;
     }
 
     if (password.length < 6) {
       setMessageType("error");
+
       setMessage(
         "Password must contain at least 6 characters."
       );
+
       return;
     }
 
     setSubmitting(true);
 
+    // ====================================
+    // SIGN UP
+    // ====================================
+
     if (mode === "signup") {
-      const { data, error } =
+      const {
+        data,
+        error,
+      } =
         await supabase.auth.signUp({
-          email: normalizedEmail,
+          email:
+            normalizedEmail,
+
           password,
+
           options: {
             emailRedirectTo:
               `${window.location.origin}/auth`,
@@ -123,59 +188,160 @@ export default function AuthPage() {
         });
 
       if (error) {
-        setMessageType("error");
+        setMessageType(
+          "error"
+        );
+
         setMessage(
           `Unable to create account: ${error.message}`
         );
+
         setSubmitting(false);
+
         return;
       }
 
-      if (data.session && data.user) {
-        await routeSignedInUser(data.user.id);
+      if (
+        data.session &&
+        data.user
+      ) {
+        await routeSignedInUser(
+          data.user.id
+        );
       } else {
-        setMessageType("success");
+        setMessageType(
+          "success"
+        );
+
         setMessage(
           "Account created. Please check your email and confirm your account before signing in."
         );
       }
 
       setSubmitting(false);
+
       return;
     }
 
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
+    // ====================================
+    // SIGN IN
+    // ====================================
+
+    const {
+      data,
+      error,
+    } =
+      await supabase.auth.signInWithPassword(
+        {
+          email:
+            normalizedEmail,
+
+          password,
+        }
+      );
 
     if (error) {
       setMessageType("error");
+
       setMessage(
         `Unable to sign in: ${error.message}`
       );
+
       setSubmitting(false);
+
       return;
     }
 
     if (!data.user) {
       setMessageType("error");
+
       setMessage(
         "Signed in, but the user account could not be loaded."
       );
+
       setSubmitting(false);
+
       return;
     }
 
-    await routeSignedInUser(data.user.id);
+    await routeSignedInUser(
+      data.user.id
+    );
+
     setSubmitting(false);
   }
 
-  function changeMode(nextMode: AuthMode) {
-    setMode(nextMode);
+  // ====================================
+  // FORGOT PASSWORD
+  // ====================================
+
+  async function handleForgotPassword() {
     setMessage("");
     setMessageType("info");
+
+    const normalizedEmail =
+      email
+        .trim()
+        .toLowerCase();
+
+    if (!normalizedEmail) {
+      setMessageType(
+        "warning"
+      );
+
+      setMessage(
+        "Enter your email address first, then click Forgot password."
+      );
+
+      return;
+    }
+
+    setSubmitting(true);
+
+    const { error } =
+      await supabase.auth
+        .resetPasswordForEmail(
+          normalizedEmail,
+          {
+            redirectTo:
+              `${window.location.origin}/auth/reset-password`,
+          }
+        );
+
+    if (error) {
+      setMessageType("error");
+
+      setMessage(
+        `Unable to send password reset email: ${error.message}`
+      );
+
+      setSubmitting(false);
+
+      return;
+    }
+
+    setMessageType("success");
+
+    setMessage(
+      "Password reset email sent. Please check your inbox."
+    );
+
+    setSubmitting(false);
+  }
+
+  // ====================================
+  // CHANGE LOGIN / SIGNUP MODE
+  // ====================================
+
+  function changeMode(
+    nextMode: AuthMode
+  ) {
+    setMode(nextMode);
+
+    setMessage("");
+
+    setMessageType("info");
+
     setPassword("");
   }
 
@@ -190,6 +356,7 @@ export default function AuthPage() {
         </Link>
 
         <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
+          {/* HEADER */}
           <div className="text-center">
             <div className="text-4xl">
               🏏
@@ -206,11 +373,14 @@ export default function AuthPage() {
             </p>
           </div>
 
+          {/* LOGIN / SIGNUP TABS */}
           <div className="mt-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
             <button
               type="button"
               onClick={() =>
-                changeMode("login")
+                changeMode(
+                  "login"
+                )
               }
               className={`rounded-md px-4 py-2 text-sm font-medium ${
                 mode === "login"
@@ -224,7 +394,9 @@ export default function AuthPage() {
             <button
               type="button"
               onClick={() =>
-                changeMode("signup")
+                changeMode(
+                  "signup"
+                )
               }
               className={`rounded-md px-4 py-2 text-sm font-medium ${
                 mode === "signup"
@@ -236,10 +408,14 @@ export default function AuthPage() {
             </button>
           </div>
 
+          {/* FORM */}
           <form
-            onSubmit={handleSubmit}
+            onSubmit={
+              handleSubmit
+            }
             className="mt-6 grid gap-4"
           >
+            {/* EMAIL */}
             <label>
               <span className="text-sm font-medium text-slate-700">
                 Email *
@@ -250,13 +426,20 @@ export default function AuthPage() {
                 required
                 autoComplete="email"
                 value={email}
-                onChange={(event) =>
-                  setEmail(event.target.value)
+                onChange={(
+                  event
+                ) =>
+                  setEmail(
+                    event
+                      .target
+                      .value
+                  )
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
             </label>
 
+            {/* PASSWORD */}
             <label>
               <span className="text-sm font-medium text-slate-700">
                 Password *
@@ -271,21 +454,49 @@ export default function AuthPage() {
                     ? "current-password"
                     : "new-password"
                 }
-                value={password}
-                onChange={(event) =>
+                value={
+                  password
+                }
+                onChange={(
+                  event
+                ) =>
                   setPassword(
-                    event.target.value
+                    event
+                      .target
+                      .value
                   )
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
               />
 
-              <p className="mt-1 text-xs text-slate-500">
-                Minimum 6 characters.
-              </p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  Minimum 6
+                  characters.
+                </p>
+
+                {mode ===
+                  "login" && (
+                  <button
+                    type="button"
+                    disabled={
+                      submitting
+                    }
+                    onClick={() =>
+                      void handleForgotPassword()
+                    }
+                    className="text-xs font-semibold text-blue-700 transition hover:text-blue-900 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Forgot
+                    password?
+                  </button>
+                )}
+              </div>
             </label>
 
-            {mode === "signup" && (
+            {/* PRIVACY AGREEMENT */}
+            {mode ===
+              "signup" && (
               <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <input
                   id="privacy"
@@ -298,10 +509,15 @@ export default function AuthPage() {
                   htmlFor="privacy"
                   className="text-sm leading-6 text-slate-700"
                 >
-                  I acknowledge that my
-                  information will be used for
-                  Starz Club membership and club
-                  administration as described in
+                  I acknowledge
+                  that my
+                  information
+                  will be used
+                  for Starz Club
+                  membership and
+                  club
+                  administration
+                  as described in
                   the{" "}
                   <Link
                     href="/privacy"
@@ -309,32 +525,43 @@ export default function AuthPage() {
                     rel="noopener noreferrer"
                     className="font-medium text-blue-700 hover:underline"
                   >
-                    Privacy Policy
+                    Privacy
+                    Policy
                   </Link>
                   .
                 </label>
               </div>
             )}
 
+            {/* SUBMIT */}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={
+                submitting
+              }
               className="mt-2 rounded-lg bg-blue-900 px-5 py-3 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {submitting
-                ? mode === "login"
+                ? mode ===
+                  "login"
                   ? "Signing in…"
                   : "Creating account…"
-                : mode === "login"
+                : mode ===
+                    "login"
                   ? "Sign In"
                   : "Create Account"}
             </button>
           </form>
 
+          {/* ALERT */}
           {message && (
             <AlertMessage
-              type={messageType}
-              message={message}
+              type={
+                messageType
+              }
+              message={
+                message
+              }
             />
           )}
         </section>
