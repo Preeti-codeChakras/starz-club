@@ -375,70 +375,70 @@ export default function UserMenu() {
 
           <div className="p-2">
             {/* MY PROFILE + STATS */}
-            {profile?.member_id &&
-            hasPlayerStats ? (
-              <Link
-                href={`/player-stats/${profile.member_id}`}
-                onClick={() =>
-                  setMenuOpen(false)
-                }
-                className="
-                  group
-                  flex
-                  items-center
-                  gap-3
-                  rounded-lg
-                  px-3
-                  py-2.5
-                  text-sm
-                  font-medium
-                  text-slate-700
-                  transition
+           {profile?.member_id ? (
+  <Link
+    href="/my-profile"
+    onClick={() =>
+      setMenuOpen(false)
+    }
+    className="
+      group
+      flex
+      items-center
+      gap-3
+      rounded-lg
+      px-3
+      py-2.5
+      text-sm
+      font-medium
+      text-slate-700
+      transition
 
-                  hover:bg-blue-50
-                  hover:text-blue-900
-                "
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                  <ChartIcon />
-                </span>
+      hover:bg-blue-50
+      hover:text-blue-900
+    "
+  >
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+      👤
+    </span>
 
-                <span className="flex-1">
-                  My Profile & Stats
-                </span>
+    <span className="flex-1">
+      My Profile & Stats
+    </span>
 
-                <span className="text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-blue-700">
-                  →
-                </span>
-              </Link>
-            ) : (
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-3
-                  rounded-lg
-                  px-3
-                  py-2.5
-                  text-sm
-                  text-slate-400
-                "
-              >
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-400">
-                  <ChartIcon />
-                </span>
+    <span className="text-slate-300 transition-transform group-hover:translate-x-1 group-hover:text-blue-700">
+      →
+    </span>
+  </Link>
+) : (
+  <div
+    className="
+      flex
+      items-center
+      gap-3
+      rounded-lg
+      px-3
+      py-2.5
+      text-sm
+      text-slate-400
+    "
+  >
+    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+      👤
+    </span>
 
-                <div>
-                  <p className="font-medium">
-                    My Profile & Stats
-                  </p>
+    <div>
+      <p className="font-medium">
+        My Profile & Stats
+      </p>
 
-                  <p className="text-xs">
-                    Stats not available yet
-                  </p>
-                </div>
-              </div>
-            )}
+      <p className="text-xs">
+        Member profile not linked
+      </p>
+    </div>
+  </div>
+)}
+
 
             {/* SIGN OUT */}
             <button
