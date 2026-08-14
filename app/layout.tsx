@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionTimeout from "@/components/SessionTimeout";
+import HomeButton from "@/components/HomeButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,7 @@ export default function RootLayout({
         <SessionTimeout />
 
         {children}
+        <HomeButton />
       </body>
     </html>
   );
