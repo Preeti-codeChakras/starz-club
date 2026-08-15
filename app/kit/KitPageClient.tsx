@@ -327,7 +327,7 @@ export default function KitPageClient() {
       kit.current_holder_member_id
     ) {
       setMessage(
-        "That member already has this kit."
+        "That member already has this kit.."
       );
 
       return;
