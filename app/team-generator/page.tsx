@@ -1805,7 +1805,7 @@ function CustomBuilder({
                         event.target.value
                       )
                     }
-                    className="w-full rounded-lg border border-slate-300 px-3 py-3"
+                    className="w-full rounded-lg border border-slate-400 bg-white px-3 py-3 font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   >
                     <option value="">
                       Unassigned
@@ -1866,7 +1866,7 @@ function CustomBuilder({
                         event.target.value
                       )
                     }
-                    className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900"
+                    className="mt-2 w-full rounded-lg border border-slate-400 bg-white px-3 py-3 font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                   >
                     <option value="">No captain selected</option>
 
