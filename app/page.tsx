@@ -73,27 +73,35 @@ const menuSections: MenuSection[] = [
     
     ],
   },
-  {
-    title: "Club Management",
-    description:
-      "Manage finances, receipts, and club photos.",
-    items: [
-      {
-        name: "Finance",
-        icon: "💰",
-        description:
-          "Track income, expenses, and receipts.",
-        href: "/finance",
-      },
-      {
-        name: "Photos",
-        icon: "📷",
-        description:
-          "View club photos and seasonal albums.",
-        href: "/photos",
-      },
-    ],
-  },
+ {
+  title: "Club Management",
+  description:
+    "Manage finances, club kits, receipts, and photos.",
+  items: [
+    {
+      name: "Finance",
+      icon: "💰",
+      description:
+        "Track income, expenses, and receipts.",
+      href: "/finance",
+    },
+    {
+      name: "Kit Tracker",
+      icon: "🎒",
+      description:
+        "See who has each club kit and record a quick handoff.",
+      href: "/kit",
+    },
+    {
+      name: "Photos",
+      icon: "📷",
+      description:
+        "View club photos and seasonal albums.",
+      href: "/photos",
+    },
+  ],
+},
+
 ];
 
 export default function Home() {
