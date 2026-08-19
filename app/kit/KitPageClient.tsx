@@ -402,7 +402,7 @@ export default function KitPageClient() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
+    <main className="app-page px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-5xl">
         <Link
           href="/"
@@ -511,7 +511,7 @@ export default function KitPageClient() {
                   <article
                     id={`kit-${kit.id}`}
                     key={kit.id}
-                    className="overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm"
+                    className="app-card overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm"
                   >
                     <div className="bg-gradient-to-r from-blue-50 via-white to-blue-50 p-6">
                       <div className="flex items-start justify-between gap-3">
@@ -563,7 +563,7 @@ export default function KitPageClient() {
                               kit
                             )
                           }
-                          className="mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
+                          className="app-primary-button mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                         >
                           🔄 Hand Off Kit
                         </button>

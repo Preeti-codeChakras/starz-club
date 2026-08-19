@@ -24,3 +24,1097 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+
+
+
+
+/* ========================================
+   STARZ CLUB THEME SYSTEM
+======================================== */
+
+:root,
+[data-theme="starz"] {
+  --app-background: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-soft: #eff6ff;
+
+  --app-text: #0f172a;
+  --app-text-muted: #64748b;
+
+  --app-primary: #1e3a8a;
+  --app-primary-hover: #1e40af;
+  --app-primary-text: #ffffff;
+
+  --app-accent: #2563eb;
+
+  --app-border: #dbeafe;
+
+  --app-success-bg: #ecfdf5;
+  --app-success-border: #a7f3d0;
+  --app-success-text: #047857;
+
+  --app-warning-bg: #fffbeb;
+  --app-warning-border: #fde68a;
+  --app-warning-text: #92400e;
+
+  --app-error-bg: #fef2f2;
+  --app-error-border: #fecaca;
+  --app-error-text: #b91c1c;
+
+  --app-header-gradient:
+    linear-gradient(
+      135deg,
+      #eff6ff,
+      #ffffff,
+      #dbeafe
+    );
+
+  --app-shadow:
+    0 4px 20px
+    rgba(15, 23, 42, 0.08);
+}
+
+
+/* ========================================
+   DARK THEME
+======================================== */
+
+[data-theme="dark"] {
+  --app-background: #020617;
+  --app-surface: #0f172a;
+  --app-surface-soft: #172033;
+
+  --app-text: #f8fafc;
+  --app-text-muted: #94a3b8;
+
+  --app-primary: #3b82f6;
+  --app-primary-hover: #60a5fa;
+  --app-primary-text: #ffffff;
+
+  --app-accent: #60a5fa;
+
+  --app-border: #334155;
+
+  --app-success-bg: #052e24;
+  --app-success-border: #047857;
+  --app-success-text: #6ee7b7;
+
+  --app-warning-bg: #422006;
+  --app-warning-border: #a16207;
+  --app-warning-text: #fde68a;
+
+  --app-error-bg: #450a0a;
+  --app-error-border: #991b1b;
+  --app-error-text: #fecaca;
+
+  --app-header-gradient:
+    linear-gradient(
+      135deg,
+      #0f172a,
+      #111827,
+      #172554
+    );
+
+  --app-shadow:
+    0 6px 24px
+    rgba(0, 0, 0, 0.35);
+}
+
+
+/* ========================================
+   PRIDE THEME 🌈
+======================================== */
+
+[data-theme="pride"] {
+  --app-background: #fffafd;
+  --app-surface: #ffffff;
+  --app-surface-soft: #fff7fb;
+
+  --app-text: #2d1934;
+  --app-text-muted: #705b77;
+
+  --app-primary: #7c3aed;
+  --app-primary-hover: #6d28d9;
+  --app-primary-text: #ffffff;
+
+  --app-accent: #db2777;
+
+  --app-border: #f5d0fe;
+
+  --app-success-bg: #ecfdf5;
+  --app-success-border: #86efac;
+  --app-success-text: #047857;
+
+  --app-warning-bg: #fffbeb;
+  --app-warning-border: #fde047;
+  --app-warning-text: #92400e;
+
+  --app-error-bg: #fff1f2;
+  --app-error-border: #fda4af;
+  --app-error-text: #be123c;
+
+  --app-header-gradient:
+    linear-gradient(
+      120deg,
+      #fee2e2 0%,
+      #ffedd5 18%,
+      #fef9c3 36%,
+      #dcfce7 54%,
+      #dbeafe 72%,
+      #ede9fe 86%,
+      #fce7f3 100%
+    );
+
+  --app-shadow:
+    0 5px 22px
+    rgba(124, 58, 237, 0.12);
+}
+
+
+/* ========================================
+   GLOBAL THEME HELPERS
+======================================== */
+
+html {
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+body {
+  background:
+    var(--app-background);
+
+  color:
+    var(--app-text);
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+
+/* Main page */
+
+.app-page {
+  min-height: 100vh;
+
+  background:
+    var(--app-background);
+
+  color:
+    var(--app-text);
+
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
+}
+
+
+/* Standard card */
+
+.app-card {
+  background:
+    var(--app-surface);
+
+  color:
+    var(--app-text);
+
+  border: 1px solid
+    var(--app-border);
+
+  box-shadow:
+    var(--app-shadow);
+
+  transition:
+    background-color 0.25s ease,
+    border-color 0.25s ease,
+    color 0.25s ease;
+}
+
+
+/* Softer inner cards */
+
+.app-card-soft {
+  background:
+    var(--app-surface-soft);
+
+  border: 1px solid
+    var(--app-border);
+
+  color:
+    var(--app-text);
+}
+
+
+/* Header / hero areas */
+
+.app-header-gradient {
+  background:
+    var(--app-header-gradient);
+}
+
+
+/* Text */
+
+.app-text {
+  color:
+    var(--app-text);
+}
+
+.app-muted {
+  color:
+    var(--app-text-muted);
+}
+
+
+/* Primary button */
+
+.app-primary-button {
+  background:
+    var(--app-primary);
+
+  color:
+    var(--app-primary-text);
+
+  transition:
+    transform 0.15s ease,
+    background-color 0.2s ease;
+}
+
+.app-primary-button:hover {
+  background:
+    var(--app-primary-hover);
+
+  transform:
+    translateY(-1px);
+}
+
+
+/* Secondary button */
+
+.app-secondary-button {
+  background:
+    var(--app-surface);
+
+  color:
+    var(--app-primary);
+
+  border: 1px solid
+    var(--app-border);
+}
+
+.app-secondary-button:hover {
+  background:
+    var(--app-surface-soft);
+}
+
+
+/* Links */
+
+.app-link {
+  color:
+    var(--app-accent);
+}
+
+
+/* ========================================
+   PRIDE SPECIAL ACCENTS 🌈
+======================================== */
+
+[data-theme="pride"]
+.pride-accent {
+  background:
+    linear-gradient(
+      90deg,
+      #ef4444,
+      #f97316,
+      #eab308,
+      #22c55e,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899
+    );
+}
+
+[data-theme="pride"]
+.pride-text {
+  background:
+    linear-gradient(
+      90deg,
+      #dc2626,
+      #ea580c,
+      #16a34a,
+      #2563eb,
+      #7c3aed,
+      #db2777
+    );
+
+  -webkit-background-clip:
+    text;
+
+  background-clip:
+    text;
+
+  color:
+    transparent;
+}
+
+
+/* Thin rainbow strip */
+
+.pride-strip {
+  display: none;
+}
+
+[data-theme="pride"]
+.pride-strip {
+  display: block;
+
+  height: 5px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #ef4444,
+      #f97316,
+      #eab308,
+      #22c55e,
+      #3b82f6,
+      #8b5cf6
+    );
+}
+
+
+/* ========================================
+   THEME SWITCHER
+======================================== */
+
+.theme-switcher {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 5px;
+
+  border-radius: 9999px;
+
+  background:
+    var(--app-surface);
+
+  border: 1px solid
+    var(--app-border);
+
+  box-shadow:
+    var(--app-shadow);
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  border: 0;
+
+  border-radius: 9999px;
+
+  padding:
+    7px 10px;
+
+  font-size:
+    13px;
+
+  font-weight:
+    600;
+
+  cursor: pointer;
+
+  color:
+    var(--app-text-muted);
+
+  background:
+    transparent;
+
+  transition:
+    all 0.2s ease;
+}
+
+.theme-option:hover {
+  background:
+    var(--app-surface-soft);
+
+  color:
+    var(--app-text);
+}
+
+.theme-option-active {
+  background:
+    var(--app-primary);
+
+  color:
+    var(--app-primary-text);
+}
+
+.theme-option-active:hover {
+  background:
+    var(--app-primary-hover);
+
+  color:
+    var(--app-primary-text);
+}
+
+/* ========================================
+   STRONGER PRIDE THEME 🌈
+   Gives existing pages an immediate
+   Pride treatment even before every
+   Tailwind color is converted.
+======================================== */
+
+[data-theme="pride"] body {
+  background:
+    linear-gradient(
+      135deg,
+      #fff1f2 0%,
+      #fff7ed 18%,
+      #fefce8 36%,
+      #f0fdf4 54%,
+      #eff6ff 72%,
+      #f5f3ff 86%,
+      #fdf2f8 100%
+    );
+
+  background-attachment: fixed;
+}
+
+
+/* Give main page areas a subtle Pride wash */
+
+[data-theme="pride"] main {
+  background:
+    linear-gradient(
+      135deg,
+      rgba(254, 226, 226, 0.72),
+      rgba(255, 237, 213, 0.55),
+      rgba(254, 249, 195, 0.45),
+      rgba(220, 252, 231, 0.5),
+      rgba(219, 234, 254, 0.55),
+      rgba(237, 233, 254, 0.6),
+      rgba(252, 231, 243, 0.7)
+    ) !important;
+}
+
+
+/* Main headings */
+
+[data-theme="pride"] h1 {
+  background:
+    linear-gradient(
+      90deg,
+      #dc2626,
+      #ea580c,
+      #ca8a04,
+      #16a34a,
+      #2563eb,
+      #7c3aed,
+      #db2777
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent !important;
+}
+
+
+/* Secondary headings */
+
+[data-theme="pride"] h2 {
+  color: #6d28d9 !important;
+}
+
+
+/* Existing white cards */
+
+[data-theme="pride"] .bg-white {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.88
+    ) !important;
+
+  border-color:
+    #f0abfc !important;
+}
+
+
+/* Existing blue cards */
+
+[data-theme="pride"] .bg-blue-50 {
+  background:
+    linear-gradient(
+      120deg,
+      #fff1f2,
+      #fff7ed,
+      #fefce8,
+      #f0fdf4,
+      #eff6ff,
+      #f5f3ff,
+      #fdf2f8
+    ) !important;
+
+  border-color:
+    #e879f9 !important;
+}
+
+
+/* Existing dark blue buttons */
+
+[data-theme="pride"] .bg-blue-900 {
+  background:
+    linear-gradient(
+      90deg,
+      #dc2626,
+      #ea580c,
+      #ca8a04,
+      #16a34a,
+      #2563eb,
+      #7c3aed,
+      #db2777
+    ) !important;
+
+  color: white !important;
+
+  box-shadow:
+    0 4px 14px
+    rgba(
+      124,
+      58,
+      237,
+      0.22
+    );
+}
+
+
+/* Button hover */
+
+[data-theme="pride"] .bg-blue-900:hover {
+  filter:
+    brightness(0.95);
+}
+
+
+/* Existing blue text */
+
+[data-theme="pride"] .text-blue-900,
+[data-theme="pride"] .text-blue-950 {
+  color:
+    #6d28d9 !important;
+}
+
+
+/* Links */
+
+[data-theme="pride"] .text-blue-700 {
+  color:
+    #db2777 !important;
+}
+
+
+/* Rainbow top strip */
+
+[data-theme="pride"] .pride-strip {
+  display: block;
+
+  position: fixed;
+
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 6px;
+
+  z-index: 9999;
+
+  background:
+    linear-gradient(
+      90deg,
+      #ef4444,
+      #f97316,
+      #eab308,
+      #22c55e,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899
+    );
+}
+
+
+/* Add subtle glow to cards */
+
+[data-theme="pride"] article {
+  box-shadow:
+    0 8px 30px
+    rgba(
+      124,
+      58,
+      237,
+      0.12
+    );
+}
+
+
+/* Pride theme selector highlight */
+
+[data-theme="pride"]
+.theme-option-active {
+  background:
+    linear-gradient(
+      90deg,
+      #ef4444,
+      #f97316,
+      #eab308,
+      #22c55e,
+      #3b82f6,
+      #8b5cf6
+    );
+
+  color:
+    white;
+}
+
+/* ========================================
+   STRONGER DARK THEME 🌙
+======================================== */
+
+[data-theme="dark"] body {
+  background:
+    linear-gradient(
+      135deg,
+      #020617 0%,
+      #0f172a 45%,
+      #111827 100%
+    );
+
+  background-attachment: fixed;
+
+  color: #f8fafc;
+}
+
+
+/* Main page backgrounds */
+
+[data-theme="dark"] main {
+  background:
+    linear-gradient(
+      135deg,
+      #020617,
+      #0f172a,
+      #111827
+    ) !important;
+
+  color: #f8fafc;
+}
+
+
+/* Existing white cards */
+
+[data-theme="dark"] .bg-white {
+  background:
+    #0f172a !important;
+
+  color:
+    #f8fafc !important;
+
+  border-color:
+    #334155 !important;
+}
+
+
+/* Existing blue-light sections */
+
+[data-theme="dark"] .bg-blue-50 {
+  background:
+    #172033 !important;
+
+  border-color:
+    #334155 !important;
+
+  color:
+    #e2e8f0 !important;
+}
+
+
+/* Existing slate-light sections */
+
+[data-theme="dark"] .bg-slate-50 {
+  background:
+    #111827 !important;
+
+  color:
+    #e2e8f0 !important;
+}
+
+
+/* Main text */
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-blue-900,
+[data-theme="dark"] .text-blue-950 {
+  color:
+    #f8fafc !important;
+}
+
+
+/* Secondary text */
+
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-600 {
+  color:
+    #cbd5e1 !important;
+}
+
+
+/* Muted text */
+
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400 {
+  color:
+    #94a3b8 !important;
+}
+
+
+/* Blue links */
+
+[data-theme="dark"] .text-blue-700,
+[data-theme="dark"] .text-blue-800 {
+  color:
+    #60a5fa !important;
+}
+
+
+/* Borders */
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-300,
+[data-theme="dark"] .border-slate-400,
+[data-theme="dark"] .border-blue-100,
+[data-theme="dark"] .border-blue-200 {
+  border-color:
+    #334155 !important;
+}
+
+
+/* Form fields */
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background:
+    #020617 !important;
+
+  color:
+    #f8fafc !important;
+
+  border-color:
+    #475569 !important;
+}
+
+
+/* Dropdown options */
+
+[data-theme="dark"] option {
+  background:
+    #0f172a;
+
+  color:
+    #f8fafc;
+}
+
+
+/* Primary blue buttons */
+
+[data-theme="dark"] .bg-blue-900 {
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #1d4ed8
+    ) !important;
+
+  color:
+    white !important;
+}
+
+
+/* Button hover */
+
+[data-theme="dark"] .bg-blue-900:hover {
+  background:
+    linear-gradient(
+      135deg,
+      #3b82f6,
+      #2563eb
+    ) !important;
+}
+
+
+/* Green tracker boxes */
+
+[data-theme="dark"] .bg-emerald-50 {
+  background:
+    #052e2b !important;
+
+  border-color:
+    #047857 !important;
+}
+
+[data-theme="dark"] .text-emerald-700 {
+  color:
+    #6ee7b7 !important;
+}
+
+
+/* Cards / articles */
+
+[data-theme="dark"] article {
+  background:
+    #0f172a !important;
+
+  border-color:
+    #334155 !important;
+
+  box-shadow:
+    0 10px 30px
+    rgba(
+      0,
+      0,
+      0,
+      0.35
+    );
+}
+
+
+/* Gradient card headers */
+
+[data-theme="dark"] .bg-gradient-to-r {
+  background:
+    linear-gradient(
+      135deg,
+      #111827,
+      #172033,
+      #0f172a
+    ) !important;
+}
+
+
+/* Quick-link box */
+
+[data-theme="dark"] .bg-blue-50 {
+  box-shadow:
+    0 4px 18px
+    rgba(
+      0,
+      0,
+      0,
+      0.2
+    );
+}
+
+/* ========================================
+   CHAMPIONS THEME 🏆
+======================================== */
+
+[data-theme="champions"] {
+  --app-background: #fffaf0;
+  --app-surface: #ffffff;
+  --app-surface-soft: #fff8dc;
+
+  --app-text: #172554;
+  --app-text-muted: #64748b;
+
+  --app-primary: #172554;
+  --app-primary-hover: #1e3a8a;
+  --app-primary-text: #ffffff;
+
+  --app-accent: #ca8a04;
+
+  --app-border: #facc15;
+
+  --app-header-gradient:
+    linear-gradient(
+      135deg,
+      #172554,
+      #1e3a8a,
+      #ca8a04
+    );
+
+  --app-shadow:
+    0 8px 25px
+    rgba(202, 138, 4, 0.18);
+}
+
+
+/* Page background */
+
+[data-theme="champions"] body,
+[data-theme="champions"] main {
+  background:
+    linear-gradient(
+      135deg,
+      #fffdf5 0%,
+      #fff7d6 45%,
+      #eff6ff 100%
+    ) !important;
+}
+
+
+/* Main heading */
+
+[data-theme="champions"] h1 {
+  background:
+    linear-gradient(
+      90deg,
+      #172554,
+      #ca8a04,
+      #facc15,
+      #1e3a8a
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent !important;
+}
+
+
+/* Cards */
+
+[data-theme="champions"] .bg-white,
+[data-theme="champions"] article {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.94
+    ) !important;
+
+  border-color:
+    #fde68a !important;
+
+  box-shadow:
+    0 8px 24px
+    rgba(
+      202,
+      138,
+      4,
+      0.14
+    );
+}
+
+
+/* Light blue areas */
+
+[data-theme="champions"] .bg-blue-50 {
+  background:
+    linear-gradient(
+      135deg,
+      #fff7d6,
+      #ffffff,
+      #eff6ff
+    ) !important;
+
+  border-color:
+    #facc15 !important;
+}
+
+
+/* Main buttons */
+
+[data-theme="champions"] .bg-blue-900 {
+  background:
+    linear-gradient(
+      90deg,
+      #172554,
+      #1e3a8a,
+      #ca8a04
+    ) !important;
+
+  color:
+    white !important;
+
+  box-shadow:
+    0 5px 16px
+    rgba(
+      202,
+      138,
+      4,
+      0.24
+    );
+}
+
+
+/* Headings */
+
+[data-theme="champions"] h2,
+[data-theme="champions"] .text-blue-900,
+[data-theme="champions"] .text-blue-950 {
+  color:
+    #172554 !important;
+}
+
+
+/* Links */
+
+[data-theme="champions"] .text-blue-700 {
+  color:
+    #b45309 !important;
+}
+
+
+/* Gold top strip */
+
+[data-theme="champions"] .pride-strip {
+  display: block;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 6px;
+
+  z-index: 9999;
+
+  background:
+    linear-gradient(
+      90deg,
+      #172554,
+      #ca8a04,
+      #facc15,
+      #ca8a04,
+      #172554
+    );
+}
+
+
+/* Active theme button */
+
+[data-theme="champions"]
+.theme-option-active {
+  background:
+    linear-gradient(
+      90deg,
+      #172554,
+      #ca8a04
+    );
+
+  color:
+    white;
+}

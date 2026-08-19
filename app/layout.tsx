@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionTimeout from "@/components/SessionTimeout";
 import HomeButton from "@/components/HomeButton";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,15 +47,40 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                const savedTheme =
+                  localStorage.getItem("starz-theme");
+
+                document.documentElement.setAttribute(
+                  "data-theme",
+                  savedTheme || "starz"
+                );
+              } catch (_) {}
+            `,
+          }}
+        />
+      </head>
+
       <body className="min-h-full">
+        <div className="pride-strip" />
+
         <SessionTimeout />
 
+        <div className="fixed left-3 top-3 z-50">
+          <ThemeSwitcher />
+        </div>
+
         {children}
+
         <HomeButton />
       </body>
     </html>
   );
 }
-
