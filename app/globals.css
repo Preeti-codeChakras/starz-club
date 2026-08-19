@@ -1118,3 +1118,314 @@ body {
   color:
     white;
 }
+
+/* ========================================
+   ONAM THEME 🌼
+======================================== */
+
+[data-theme="onam"] {
+  --app-background: #fffdf5;
+  --app-surface: #ffffff;
+  --app-surface-soft: #fff8dc;
+
+  --app-text: #18392b;
+  --app-text-muted: #66756b;
+
+  --app-primary: #166534;
+  --app-primary-hover: #14532d;
+  --app-primary-text: #ffffff;
+
+  --app-accent: #ca8a04;
+
+  --app-border: #e7c95b;
+
+  --app-header-gradient:
+    linear-gradient(
+      135deg,
+      #14532d,
+      #166534,
+      #ca8a04
+    );
+
+  --app-shadow:
+    0 8px 24px
+    rgba(22, 101, 52, 0.12);
+}
+
+
+/* PAGE BACKGROUND */
+
+[data-theme="onam"] body,
+[data-theme="onam"] main {
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      rgba(250, 204, 21, 0.12),
+      transparent 22%
+    ),
+    radial-gradient(
+      circle at 85% 20%,
+      rgba(34, 197, 94, 0.08),
+      transparent 20%
+    ),
+    linear-gradient(
+      135deg,
+      #fffdf5 0%,
+      #fff8dc 45%,
+      #f0fdf4 100%
+    ) !important;
+}
+
+
+/* MAIN HEADER */
+
+[data-theme="onam"] header {
+  background:
+    linear-gradient(
+      120deg,
+      #064e3b,
+      #166534,
+      #ca8a04
+    ) !important;
+}
+
+
+/* ONAM MAIN TITLE */
+
+[data-theme="onam"] h1 {
+  background:
+    linear-gradient(
+      90deg,
+      #166534,
+      #ca8a04,
+      #facc15,
+      #15803d
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent !important;
+}
+
+
+/* CARDS */
+
+[data-theme="onam"] .bg-white,
+[data-theme="onam"] article {
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.94
+    ) !important;
+
+  border-color:
+    #e7c95b !important;
+
+  box-shadow:
+    0 7px 22px
+    rgba(
+      22,
+      101,
+      52,
+      0.10
+    );
+}
+
+
+/* LIGHT SECTIONS */
+
+[data-theme="onam"] .bg-blue-50 {
+  background:
+    linear-gradient(
+      135deg,
+      #fff8dc,
+      #fffef4,
+      #f0fdf4
+    ) !important;
+
+  border-color:
+    #e7c95b !important;
+}
+
+
+/* PRIMARY BUTTONS */
+
+[data-theme="onam"] .bg-blue-900 {
+  background:
+    linear-gradient(
+      90deg,
+      #166534,
+      #15803d,
+      #ca8a04
+    ) !important;
+
+  color:
+    white !important;
+}
+
+
+/* LINKS */
+
+[data-theme="onam"] .text-blue-700 {
+  color:
+    #a16207 !important;
+}
+
+
+/* HEADINGS */
+
+[data-theme="onam"] h2,
+[data-theme="onam"] .text-blue-900,
+[data-theme="onam"] .text-blue-950 {
+  color:
+    #166534 !important;
+}
+
+
+/* TOP FESTIVAL STRIP */
+
+[data-theme="onam"] .pride-strip {
+  display: block;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 6px;
+
+  z-index: 9999;
+
+  background:
+    linear-gradient(
+      90deg,
+      #166534,
+      #ca8a04,
+      #facc15,
+      #ca8a04,
+      #166534
+    );
+}
+
+
+/* ========================================
+   POOKALAM-INSPIRED DECORATION 🌼
+======================================== */
+
+[data-theme="onam"] main::before {
+  content: "🌼";
+
+  position: fixed;
+
+  right: 18px;
+  bottom: 22px;
+
+  z-index: 0;
+
+  font-size: 76px;
+
+  opacity: 0.08;
+
+  pointer-events: none;
+
+  transform:
+    rotate(-12deg);
+}
+
+
+/* SNAKE BOAT ACCENT 🛶 */
+
+[data-theme="onam"] main::after {
+  content:
+    "🛶";
+
+  position: fixed;
+
+  left: 18px;
+  bottom: 18px;
+
+  z-index: 0;
+
+  font-size: 54px;
+
+  opacity: 0.10;
+
+  pointer-events: none;
+}
+
+
+/* ACTIVE ONAM PREVIEW */
+
+[data-theme="onam"]
+.theme-option-active {
+  background:
+    linear-gradient(
+      90deg,
+      #166534,
+      #ca8a04
+    );
+
+  color:
+    white;
+}
+
+/* ========================================
+   ONAM CELEBRATION BANNER 🌼🛶
+======================================== */
+
+.onam-banner {
+  display: none;
+}
+
+[data-theme="onam"]
+.onam-banner {
+  display: block;
+
+  animation:
+    onamBannerEnter
+    0.55s
+    ease-out;
+}
+
+[data-theme="onam"]
+.onam-banner > div {
+  box-shadow:
+    0 12px 35px
+    rgba(120, 90, 15, 0.15);
+}
+
+@keyframes onamBannerEnter {
+  from {
+    opacity: 0;
+    transform:
+      translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0);
+  }
+}
+
+
+/* Mobile */
+
+@media (
+  max-width: 640px
+) {
+  [data-theme="onam"]
+  .onam-banner {
+    margin-top: 12px;
+  }
+
+  [data-theme="onam"]
+  .onam-banner > div {
+    border-radius:
+      14px;
+  }
+}
+

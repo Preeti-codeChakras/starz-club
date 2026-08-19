@@ -73,9 +73,21 @@ export default function RootLayout({
 
         <SessionTimeout />
 
-        <div className="fixed left-3 top-3 z-50">
-          <ThemeSwitcher />
-        </div>
+        <div
+  className="
+    fixed
+    bottom-5
+    left-4
+    z-50
+
+    sm:bottom-auto
+    sm:left-4
+    sm:top-5
+  "
+>
+
+</div>
+
 
         {children}
 

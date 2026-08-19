@@ -1,19 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 type Theme =
   | "starz"
   | "dark"
   | "pride"
-  | "champions";
+  | "champions"
+  | "onam";
 
-const themes: {
+type ThemeOption = {
   value: Theme;
   label: string;
   icon: string;
   description: string;
-}[] = [
+};
+
+const mainThemes: ThemeOption[] = [
   {
     value: "starz",
     label: "Starz Blue",
@@ -40,11 +47,28 @@ const themes: {
   },
 ];
 
+const eventThemes: ThemeOption[] = [
+  {
+    value: "onam",
+    label: "Onam",
+    icon: "🌼",
+    description: "Kerala festival",
+  },
+];
+
+const allThemes = [
+  ...mainThemes,
+  ...eventThemes,
+];
+
 export default function ThemeSwitcher() {
   const [theme, setTheme] =
     useState<Theme>("starz");
 
   const [open, setOpen] =
+    useState(false);
+
+  const [eventsOpen, setEventsOpen] =
     useState(false);
 
   const menuRef =
@@ -57,7 +81,7 @@ export default function ThemeSwitcher() {
       ) as Theme | null;
 
     const validTheme =
-      themes.some(
+      allThemes.some(
         (item) =>
           item.value === savedTheme
       );
@@ -76,7 +100,7 @@ export default function ThemeSwitcher() {
   }, []);
 
   useEffect(() => {
-    function handleClickOutside(
+    function handleOutsideClick(
       event: MouseEvent
     ) {
       if (
@@ -86,20 +110,21 @@ export default function ThemeSwitcher() {
         )
       ) {
         setOpen(false);
+        setEventsOpen(false);
       }
     }
 
     if (open) {
       document.addEventListener(
         "mousedown",
-        handleClickOutside
+        handleOutsideClick
       );
     }
 
     return () => {
       document.removeEventListener(
         "mousedown",
-        handleClickOutside
+        handleOutsideClick
       );
     };
   }, [open]);
@@ -120,10 +145,11 @@ export default function ThemeSwitcher() {
     );
 
     setOpen(false);
+    setEventsOpen(false);
   }
 
   const activeTheme =
-    themes.find(
+    allThemes.find(
       (item) =>
         item.value === theme
     );
@@ -136,23 +162,90 @@ export default function ThemeSwitcher() {
         return "bg-slate-900 text-white hover:bg-slate-800";
 
       case "pride":
-        return "bg-gradient-to-r from-rose-50 via-amber-50 via-emerald-50 to-violet-50 text-slate-800 hover:brightness-[0.98]";
+        return "bg-gradient-to-r from-rose-50 via-amber-50 to-violet-50 text-slate-800";
 
       case "champions":
-        return "bg-gradient-to-r from-amber-50 to-yellow-100 text-slate-800 hover:brightness-[0.98]";
+        return "bg-gradient-to-r from-amber-50 to-yellow-100 text-slate-800";
+
+      case "onam":
+        return "bg-gradient-to-r from-amber-50 via-yellow-50 to-emerald-50 text-slate-800";
 
       default:
         return "bg-blue-50 text-slate-800 hover:bg-blue-100";
     }
   }
 
+  function renderThemeOption(
+    item: ThemeOption
+  ) {
+    const isActive =
+      item.value === theme;
+
+    return (
+      <button
+        key={item.value}
+        type="button"
+        onClick={() =>
+          changeTheme(
+            item.value
+          )
+        }
+        className={`
+          flex
+          w-full
+          items-center
+          gap-2.5
+          rounded-lg
+          px-2.5
+          py-2
+          text-left
+          transition
+
+          ${getThemePreview(
+            item.value
+          )}
+
+          ${
+            isActive
+              ? "ring-1 ring-blue-400"
+              : ""
+          }
+        `}
+      >
+        <span className="text-base">
+          {item.icon}
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">
+            {item.label}
+          </div>
+
+          <div
+            className={
+              item.value === "dark"
+                ? "text-[10px] text-slate-300"
+                : "text-[10px] text-slate-500"
+            }
+          >
+            {item.description}
+          </div>
+        </div>
+
+        {isActive && (
+          <span className="text-xs font-bold text-blue-600">
+            ✓
+          </span>
+        )}
+      </button>
+    );
+  }
+
   return (
     <div
       ref={menuRef}
-      className="relative"
+      className="relative shrink-0"
     >
-      {/* MAIN BUTTON */}
-
       <button
         type="button"
         onClick={() =>
@@ -161,52 +254,53 @@ export default function ThemeSwitcher() {
               !current
           )
         }
+        aria-label="Change app theme"
+        aria-expanded={open}
+        title="Change Theme"
         className="
           flex
+          h-[58px]
           items-center
-          gap-2
-          rounded-full
+          gap-1.5
+          rounded-xl
           border
-          border-white/30
-          bg-gradient-to-r
-          from-indigo-600
-          via-violet-600
-          to-fuchsia-500
-          px-3.5
-          py-2
-          text-sm
-          font-semibold
+          border-white/20
+          bg-white/10
+          px-3
           text-white
-          shadow-md
+          shadow-sm
+          backdrop-blur-sm
           transition
-          hover:scale-[1.02]
-          hover:shadow-lg
+          hover:bg-white/20
           active:scale-95
         "
-        aria-label="Change theme"
-        aria-expanded={open}
       >
-        <span>
+        <span className="text-lg">
           🎨
         </span>
 
-        <span>
-          Theme
-        </span>
+        <div className="text-left">
+          <div className="text-xs font-semibold">
+            Theme
+          </div>
 
-        <span className="text-xs opacity-90">
-          {activeTheme?.icon}
+          <div className="text-[10px] text-blue-100">
+            {activeTheme?.icon}{" "}
+            {activeTheme?.label}
+          </div>
+        </div>
+
+        <span className="ml-0.5 text-[9px] text-blue-100">
+          {open ? "▲" : "▼"}
         </span>
       </button>
-
-      {/* DROPDOWN */}
 
       {open && (
         <div
           className="
             absolute
-            left-0
-            top-12
+            right-0
+            top-[66px]
             z-[100]
             w-56
             rounded-xl
@@ -214,7 +308,7 @@ export default function ThemeSwitcher() {
             border-slate-200/80
             bg-white/95
             p-2
-            shadow-xl
+            shadow-2xl
             backdrop-blur-md
           "
         >
@@ -229,76 +323,62 @@ export default function ThemeSwitcher() {
           </div>
 
           <div className="space-y-1">
-            {themes.map(
-              (item) => {
-                const isActive =
-                  theme ===
-                  item.value;
+            {mainThemes.map(
+              renderThemeOption
+            )}
 
-                return (
-                  <button
-                    key={
-                      item.value
-                    }
-                    type="button"
-                    onClick={() =>
-                      changeTheme(
-                        item.value
-                      )
-                    }
-                    className={`
-                      flex
-                      w-full
-                      items-center
-                      gap-2.5
-                      rounded-lg
-                      px-2.5
-                      py-2
-                      text-left
-                      transition
-                      ${getThemePreview(
-                        item.value
-                      )}
-                      ${
-                        isActive
-                          ? "ring-1 ring-blue-400"
-                          : ""
-                      }
-                    `}
-                  >
-                    <span className="text-base">
-                      {item.icon}
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium">
-                        {item.label}
-                      </div>
-
-                      <div
-                        className={`
-                          text-[10px]
-                          ${
-                            item.value === "dark"
-                              ? "text-slate-300"
-                              : "text-slate-500"
-                          }
-                        `}
-                      >
-                        {
-                          item.description
-                        }
-                      </div>
-                    </div>
-
-                    {isActive && (
-                      <span className="text-xs font-bold text-blue-600">
-                        ✓
-                      </span>
-                    )}
-                  </button>
-                );
+            <button
+              type="button"
+              onClick={() =>
+                setEventsOpen(
+                  (current) =>
+                    !current
+                )
               }
+              className="
+                flex
+                w-full
+                items-center
+                gap-2.5
+                rounded-lg
+                bg-gradient-to-r
+                from-orange-50
+                to-yellow-50
+                px-2.5
+                py-2
+                text-left
+                text-slate-800
+                transition
+                hover:brightness-[0.98]
+              "
+            >
+              <span className="text-base">
+                🎉
+              </span>
+
+              <div className="flex-1">
+                <div className="text-sm font-medium">
+                  Events
+                </div>
+
+                <div className="text-[10px] text-slate-500">
+                  Seasonal themes
+                </div>
+              </div>
+
+              <span className="text-xs text-slate-500">
+                {eventsOpen
+                  ? "▲"
+                  : "▼"}
+              </span>
+            </button>
+
+            {eventsOpen && (
+              <div className="ml-3 space-y-1 border-l border-amber-200 pl-2">
+                {eventThemes.map(
+                  renderThemeOption
+                )}
+              </div>
             )}
           </div>
         </div>
