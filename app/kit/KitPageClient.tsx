@@ -56,6 +56,27 @@ type Handoff = {
     | null;
 };
 
+const KIT_TRACKERS: Record<
+  string,
+  {
+    name: string;
+    platform: "google" | "apple";
+    url: string;
+  }
+> = {
+  "Starz Kit 1": {
+    name: "SeekTag 1",
+    platform: "google",
+    url: "https://www.google.com/android/find/",
+  },
+
+  "Starz Kit 2": {
+    name: "SeekTag 2",
+    platform: "apple",
+    url: "https://www.icloud.com/find/",
+  },
+};
+
 export default function KitPageClient() {
   const searchParams = useSearchParams();
 
@@ -63,47 +84,87 @@ export default function KitPageClient() {
 
   const [kits, setKits] = useState<Kit[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
-  const [handoffs, setHandoffs] = useState<Record<string, Handoff[]>>({});
+  const [handoffs, setHandoffs] =
+    useState<Record<string, Handoff[]>>({});
 
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  const [openKitId, setOpenKitId] = useState<string | null>(null);
-
-  const [expandedHistoryKitId, setExpandedHistoryKitId] =
+  const [openKitId, setOpenKitId] =
     useState<string | null>(null);
 
-  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [
+    expandedHistoryKitId,
+    setExpandedHistoryKitId,
+  ] = useState<string | null>(null);
+
+  const [selectedMemberId, setSelectedMemberId] =
+    useState("");
+
   const [note, setNote] = useState("");
 
-  const [savingKitId, setSavingKitId] = useState<string | null>(null);
+  const [savingKitId, setSavingKitId] =
+    useState<string | null>(null);
+
+  const [isLoggedIn, setIsLoggedIn] =
+    useState(false);
 
   useEffect(() => {
     void loadPage();
+  }, []);
+
+  useEffect(() => {
+    async function checkAuth() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setIsLoggedIn(Boolean(user));
+    }
+
+    void checkAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setIsLoggedIn(
+          Boolean(session?.user)
+        );
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function loadPage() {
     setLoading(true);
     setMessage("");
 
-    const [kitsResult, membersResult] = await Promise.all([
-      supabase
-        .from("club_kits")
-        .select(`
-          id,
-          name,
-          updated_at,
-          current_holder_member_id,
-
-          current_holder:members (
+    const [kitsResult, membersResult] =
+      await Promise.all([
+        supabase
+          .from("club_kits")
+          .select(`
             id,
-            name
-          )
-        `)
-        .order("name"),
+            name,
+            updated_at,
+            current_holder_member_id,
 
-      supabase.from("members").select("id, name").order("name"),
-    ]);
+            current_holder:members (
+              id,
+              name
+            )
+          `)
+          .order("name"),
+
+        supabase
+          .from("members")
+          .select("id, name")
+          .order("name"),
+      ]);
 
     if (kitsResult.error) {
       setMessage(
@@ -135,7 +196,8 @@ export default function KitPageClient() {
     if (
       requestedKitId &&
       loadedKits.some(
-        (kit) => kit.id === requestedKitId
+        (kit) =>
+          kit.id === requestedKitId
       )
     ) {
       setOpenKitId(requestedKitId);
@@ -244,84 +306,84 @@ export default function KitPageClient() {
   }
 
   async function confirmHandoff(
-  kit: Kit
-) {
-  if (!selectedMemberId) {
-    setMessage(
-      "Please choose the member receiving the kit."
-    );
-
-    return;
-  }
-
-  if (
-    selectedMemberId ===
-    kit.current_holder_member_id
+    kit: Kit
   ) {
-    setMessage(
-      "That member already has this kit."
-    );
-
-    return;
-  }
-
-  setSavingKitId(kit.id);
-  setMessage("");
-
-  try {
-    const response = await fetch(
-      "/api/kits/handoff",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-
-        body: JSON.stringify({
-          kitId: kit.id,
-
-          memberId:
-            selectedMemberId,
-
-          note:
-            note.trim() || null,
-        }),
-      }
-    );
-
-    const result =
-      await response.json();
-
-    if (!response.ok) {
+    if (!selectedMemberId) {
       setMessage(
-        result.error ||
-          "Unable to update the kit."
+        "Please choose the member receiving the kit."
       );
 
-      setSavingKitId(null);
       return;
     }
 
-    setOpenKitId(null);
-    setSelectedMemberId("");
-    setNote("");
+    if (
+      selectedMemberId ===
+      kit.current_holder_member_id
+    ) {
+      setMessage(
+        "That member already has this kit."
+      );
 
-    await loadPage();
+      return;
+    }
 
-    setMessage(
-      `✅ ${result.message}`
-    );
-  } catch {
-    setMessage(
-      "Unable to update the kit. Please try again."
-    );
-  } finally {
-    setSavingKitId(null);
+    setSavingKitId(kit.id);
+    setMessage("");
+
+    try {
+      const response =
+        await fetch(
+          "/api/kits/handoff",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              kitId: kit.id,
+
+              memberId:
+                selectedMemberId,
+
+              note:
+                note.trim() || null,
+            }),
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          result.error ||
+            "Unable to update the kit."
+        );
+
+        setSavingKitId(null);
+        return;
+      }
+
+      setOpenKitId(null);
+      setSelectedMemberId("");
+      setNote("");
+
+      await loadPage();
+
+      setMessage(
+        `✅ ${result.message}`
+      );
+    } catch {
+      setMessage(
+        "Unable to update the kit. Please try again."
+      );
+    } finally {
+      setSavingKitId(null);
+    }
   }
-}
-
 
   async function copyKitLink() {
     try {
@@ -440,6 +502,11 @@ export default function KitPageClient() {
                         3
                       );
 
+                const tracker =
+                  KIT_TRACKERS[
+                    kit.name
+                  ];
+
                 return (
                   <article
                     id={`kit-${kit.id}`}
@@ -463,6 +530,8 @@ export default function KitPageClient() {
                         </span>
                       </div>
 
+                      {/* CURRENT HOLDER */}
+
                       <div className="mt-5 rounded-xl bg-white p-4 shadow-sm">
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                           Current Holder
@@ -484,17 +553,63 @@ export default function KitPageClient() {
                         )}
                       </div>
 
+                      {/* HAND OFF KIT FIRST */}
+
                       {!isOpen && (
                         <button
                           type="button"
                           onClick={() =>
-                            startHandoff(kit)
+                            startHandoff(
+                              kit
+                            )
                           }
                           className="mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                         >
                           🔄 Hand Off Kit
                         </button>
                       )}
+
+                      {/* SEEKTAG TRACKER BELOW */}
+
+                      {isLoggedIn &&
+                        tracker && (
+                          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                  📍 Kit Tracker
+                                </p>
+
+                                <p className="mt-2 font-bold text-slate-900">
+                                  🟢 {tracker.name} Connected
+                                </p>
+
+                               <p className="mt-1 text-sm text-slate-600">
+  Open{" "}
+  {tracker.platform === "google"
+    ? "Google Find Hub"
+    : "Apple Find My"}{" "}
+  to see this kit&apos;s tracker location.
+</p>
+                              </div>
+
+                              <span className="text-2xl">
+                                📡
+                              </span>
+                            </div>
+
+                            <a
+                              href={
+                                tracker.url
+                              }
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-4 block w-full rounded-lg bg-emerald-700 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-800"
+                            >
+                              📍 Locate {kit.name}
+                            </a>
+                          </div>
+                        )}
                     </div>
 
                     {/* HANDOFF FORM */}
