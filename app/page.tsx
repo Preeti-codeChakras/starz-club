@@ -1,8 +1,10 @@
 import Link from "next/link";
 import UserMenu from "@/components/UserMenu";
+import ThemeSwitcher from "@/components/ThemeSwitcher";
 import ProfileCompletionWarning from "@/components/ProfileCompleteWarning";
 import PendingApprovalsCard from "@/components/PendingApprovalsCard";
 import BirthdayBanner from "@/components/BirthdayBanner";
+import OnamBanner from "@/components/OnamBanner";
 
 type MenuItem = {
   name: string;
@@ -26,24 +28,28 @@ const menuSections: MenuSection[] = [
       {
         name: "Teams",
         icon: "🏏",
-        description: "View teams, player rosters, team history and player stats.",
+        description:
+          "View teams, player rosters, team history and player stats.",
         href: "/teams",
       },
       {
         name: "Members",
         icon: "👥",
-        description: "View and manage club members.",
+        description:
+          "View and manage club members.",
         href: "/members",
       },
-
       {
-        name: "Team Builder/Team Assignment",
+        name:
+          "Team Builder/Team Assignment",
         icon: "⚖️",
-        description: "Create Fair Teams Using Skills and Availability.",
+        description:
+          "Create Fair Teams Using Skills and Availability.",
         href: "/team-generator",
       },
     ],
   },
+
   {
     title: "Season",
     description:
@@ -70,266 +76,366 @@ const menuSections: MenuSection[] = [
           "View practices, games, and locations.",
         href: "/schedule",
       },
-    
     ],
   },
- {
-  title: "Club Management",
-  description:
-    "Manage finances, club kits, receipts, and photos.",
-  items: [
-    {
-      name: "Finance",
-      icon: "💰",
-      description:
-        "Track income, expenses, and receipts.",
-      href: "/finance",
-    },
-    {
-      name: "Kit Tracker",
-      icon: "🎒",
-      description:
-        "See who has each club kit and record a quick handoff.",
-      href: "/kit",
-    },
-    {
-      name: "Photos",
-      icon: "📷",
-      description:
-        "View club photos and seasonal albums.",
-      href: "/photos",
-    },
-  ],
-},
 
+  {
+    title: "Club Management",
+    description:
+      "Manage finances, club kits, receipts, and photos.",
+    items: [
+      {
+        name: "Finance",
+        icon: "💰",
+        description:
+          "Track income, expenses, and receipts.",
+        href: "/finance",
+      },
+      {
+        name: "Kit Tracker",
+        icon: "🎒",
+        description:
+          "See who has each club kit and record a quick handoff.",
+        href: "/kit",
+      },
+      {
+        name: "Photos",
+        icon: "📷",
+        description:
+          "View club photos and seasonal albums.",
+        href: "/photos",
+      },
+    ],
+  },
 ];
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50">
-    {/* HEADER */}
-<header className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-700 text-white">
-  <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8 sm:py-6">
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* HEADER */}
 
-      {/* CLUB BRAND */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-2xl shadow-sm backdrop-blur-sm sm:h-12 sm:w-12 sm:text-3xl">
-          ⭐
-        </div>
+      <header className="bg-gradient-to-r from-blue-950 via-blue-900 to-blue-700 text-white">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-8 sm:py-6">
+          <div
+            className="
+              flex
+              flex-col
+              gap-4
 
-        <div>
-          {/* TITLE + ABOUT US */}
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
-              Starz Club
-            </h1>
+              sm:flex-row
+              sm:items-center
+              sm:justify-between
+            "
+          >
+            {/* CLUB BRAND */}
 
-            <Link
-              href="/about"
-              className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-white/20 sm:text-sm"
-            >
-              About Us
-            </Link>
-          </div>
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex
+                  h-11
+                  w-11
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-white/10
+                  text-2xl
+                  shadow-sm
+                  backdrop-blur-sm
 
-          <p className="mt-0.5 text-xs text-blue-100 sm:text-sm">
-            Cricket, community and connection
-          </p>
-        </div>
-      </div>
-
-      {/* USER INFORMATION */}
-      <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm sm:bg-transparent sm:p-0">
-        <UserMenu />
-      </div>
-
-    </div>
-  </div>
-</header>
-
-
-
-      {/* MAIN CONTENT */}
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
-        {/* PROFILE COMPLETION WARNING */}
-        <ProfileCompletionWarning />
-    
-        <BirthdayBanner />
-<div className="space-y-10"></div>
-        <PendingApprovalsCard />
-        <div className="space-y-10">
-          {menuSections.map((section) => (
-            <section key={section.title}>
-              {/* SECTION HEADING */}
-              <div className="mb-4">
-                <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
-                  {section.title}
-                </h2>
-
-                <p className="mt-1 text-sm leading-5 text-slate-600">
-                  {section.description}
-                </p>
+                  sm:h-12
+                  sm:w-12
+                  sm:text-3xl
+                "
+              >
+                ⭐
               </div>
 
-              {/* RESPONSIVE CARDS */}
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {section.items.map((item) => (
+              <div>
+                {/* TITLE + ABOUT US */}
+
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
+                    Starz Club
+                  </h1>
+
                   <Link
-                    key={item.name}
-                    href={item.href}
+                    href="/about"
                     className="
-                      group
-                      flex
-                      min-h-36
-                      flex-col
-                      rounded-2xl
+                      rounded-lg
                       border
-                      border-blue-100
-                      bg-blue-50/70
-                      p-5
-                      shadow-sm
-                      transition-all
-                      duration-300
-                      ease-out
+                      border-white/30
+                      bg-white/10
+                      px-3
+                      py-1.5
+                      text-xs
+                      font-medium
+                      text-white
+                      transition
+                      hover:bg-white/20
 
-                      hover:-translate-y-1
-                      hover:border-blue-900
-                      hover:bg-blue-900
-                      hover:shadow-xl
-                      hover:shadow-blue-200/70
-
-                      focus:outline-none
-                      focus:ring-2
-                      focus:ring-blue-700
-                      focus:ring-offset-2
+                      sm:text-sm
                     "
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* ICON */}
-                      <div
+                    About Us
+                  </Link>
+                </div>
+
+                <p className="mt-0.5 text-xs text-blue-100 sm:text-sm">
+                  Cricket, community and
+                  connection
+                </p>
+              </div>
+            </div>
+
+            {/* USER + THEME CONTROLS */}
+
+            <div
+              className="
+                flex
+                items-center
+                gap-2
+                rounded-xl
+                bg-white/10
+                p-3
+                backdrop-blur-sm
+
+                sm:bg-transparent
+                sm:p-0
+              "
+            >
+              <div className="min-w-0 flex-1 sm:flex-none">
+                <UserMenu />
+              </div>
+
+              <ThemeSwitcher />
+            </div>
+          </div>
+        </div>
+      </header>
+      <OnamBanner />
+
+      {/* MAIN CONTENT */}
+
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
+        {/* PROFILE COMPLETION WARNING */}
+
+        <ProfileCompletionWarning />
+
+        <BirthdayBanner />
+
+        <div className="space-y-10" />
+
+        <PendingApprovalsCard />
+
+        <div className="space-y-10">
+          {menuSections.map(
+            (section) => (
+              <section
+                key={
+                  section.title
+                }
+              >
+                {/* SECTION HEADING */}
+
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">
+                    {
+                      section.title
+                    }
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-5 text-slate-600">
+                    {
+                      section.description
+                    }
+                  </p>
+                </div>
+
+                {/* RESPONSIVE CARDS */}
+
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {section.items.map(
+                    (item) => (
+                      <Link
+                        key={
+                          item.name
+                        }
+                        href={
+                          item.href
+                        }
                         className="
+                          group
                           flex
-                          h-11
-                          w-11
-                          shrink-0
-                          items-center
-                          justify-center
-                          rounded-xl
-                          bg-white
-                          text-2xl
+                          min-h-36
+                          flex-col
+                          rounded-2xl
+                          border
+                          border-blue-100
+                          bg-blue-50/70
+                          p-5
                           shadow-sm
                           transition-all
                           duration-300
+                          ease-out
 
-                          group-hover:scale-110
-                          group-hover:bg-white/20
+                          hover:-translate-y-1
+                          hover:border-blue-900
+                          hover:bg-blue-900
+                          hover:shadow-xl
+                          hover:shadow-blue-200/70
+
+                          focus:outline-none
+                          focus:ring-2
+                          focus:ring-blue-700
+                          focus:ring-offset-2
                         "
                       >
-                        {item.icon}
-                      </div>
+                        <div className="flex items-start justify-between gap-4">
+                          {/* ICON */}
 
-                      {/* ARROW */}
-                      <span
-                        aria-hidden="true"
-                        className="
-                          text-xl
-                          text-blue-300
-                          transition-all
-                          duration-300
+                          <div
+                            className="
+                              flex
+                              h-11
+                              w-11
+                              shrink-0
+                              items-center
+                              justify-center
+                              rounded-xl
+                              bg-white
+                              text-2xl
+                              shadow-sm
+                              transition-all
+                              duration-300
 
-                          group-hover:translate-x-1
-                          group-hover:text-white
-                        "
-                      >
-                        →
-                      </span>
-                    </div>
+                              group-hover:scale-110
+                              group-hover:bg-white/20
+                            "
+                          >
+                            {
+                              item.icon
+                            }
+                          </div>
 
-                    {/* CARD TITLE */}
-                    <h3
-                      className="
-                        mt-4
-                        text-lg
-                        font-semibold
-                        text-blue-950
-                        transition-colors
-                        duration-300
+                          {/* ARROW */}
 
-                        group-hover:text-white
-                      "
-                    >
-                      {item.name}
-                    </h3>
+                          <span
+                            aria-hidden="true"
+                            className="
+                              text-xl
+                              text-blue-300
+                              transition-all
+                              duration-300
 
-                    {/* CARD DESCRIPTION */}
-                    <p
-                      className="
-                        mt-1
-                        text-sm
-                        leading-5
-                        text-slate-600
-                        transition-colors
-                        duration-300
+                              group-hover:translate-x-1
+                              group-hover:text-white
+                            "
+                          >
+                            →
+                          </span>
+                        </div>
 
-                        group-hover:text-blue-100
-                      "
-                    >
-                      {item.description}
-                    </p>
-                  </Link>
-                ))}
-              </div>
-            </section>
-          ))}
+                        {/* CARD TITLE */}
+
+                        <h3
+                          className="
+                            mt-4
+                            text-lg
+                            font-semibold
+                            text-blue-950
+                            transition-colors
+                            duration-300
+
+                            group-hover:text-white
+                          "
+                        >
+                          {
+                            item.name
+                          }
+                        </h3>
+
+                        {/* CARD DESCRIPTION */}
+
+                        <p
+                          className="
+                            mt-1
+                            text-sm
+                            leading-5
+                            text-slate-600
+                            transition-colors
+                            duration-300
+
+                            group-hover:text-blue-100
+                          "
+                        >
+                          {
+                            item.description
+                          }
+                        </p>
+                      </Link>
+                    )
+                  )}
+                </div>
+              </section>
+            )
+          )}
         </div>
       </div>
 
       {/* FOOTER */}
-    <footer className="mt-8 border-t border-slate-200 bg-white">
-  <div className="mx-auto max-w-7xl px-4 py-5 text-center text-xs text-slate-500 sm:px-10 sm:text-sm">
-    <p>
-      © 2026 Starz Club ⭐
-      <br />
-      A family surviving on countless cups of chai ☕ and love for cricket 🏏
-    </p>
 
-    <div className="mt-3 flex justify-center gap-4">
-      <Link
-        href="/privacy"
-        className="font-medium text-blue-700 hover:underline"
-      >
-        Privacy Policy
-      </Link>
-    </div>
-  </div>
-</footer>
+      <footer className="mt-8 border-t border-slate-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-5 text-center text-xs text-slate-500 sm:px-10 sm:text-sm">
+          <p>
+            © 2026 Starz Club ⭐
+            <br />
+            A family surviving on
+            countless cups of chai ☕
+            and love for cricket 🏏
+          </p>
+
+          <div className="mt-3 flex justify-center gap-4">
+            <Link
+              href="/privacy"
+              className="font-medium text-blue-700 hover:underline"
+            >
+              Privacy Policy
+            </Link>
+          </div>
+        </div>
+      </footer>
+
+      {/* DESKTOP SIGNATURE */}
 
       <div
-  className="
-    hidden
-    xl:flex
-    fixed
-    right-6
-    top-1/2
-    -translate-y-1/2
-    [writing-mode:vertical-rl]
-    text-sm
-    font-semibold
-    tracking-[0.25em]
-    text-slate-800
-    opacity-90
-    hover:text-blue-900
-    hover:opacity-100
-    transition-all
-    duration-300
-    select-none
-  "
->
-  Built with ❤️ by Preeti • Starz Club
-</div>
+        className="
+          fixed
+          right-6
+          top-1/2
+          hidden
+          -translate-y-1/2
+          select-none
+          text-sm
+          font-semibold
+          tracking-[0.25em]
+          text-slate-800
+          opacity-90
+          transition-all
+          duration-300
 
+          hover:text-blue-900
+          hover:opacity-100
 
+          xl:flex
+
+          [writing-mode:vertical-rl]
+        "
+      >
+        Built with ❤️ by Preeti • Starz
+        Club
+      </div>
     </main>
   );
 }
