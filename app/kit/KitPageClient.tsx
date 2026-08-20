@@ -84,11 +84,15 @@ export default function KitPageClient() {
 
   const [kits, setKits] = useState<Kit[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+
   const [handoffs, setHandoffs] =
     useState<Record<string, Handoff[]>>({});
 
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] =
+    useState(true);
+
+  const [message, setMessage] =
+    useState("");
 
   const [openKitId, setOpenKitId] =
     useState<string | null>(null);
@@ -98,16 +102,23 @@ export default function KitPageClient() {
     setExpandedHistoryKitId,
   ] = useState<string | null>(null);
 
-  const [selectedMemberId, setSelectedMemberId] =
+  const [
+    selectedMemberId,
+    setSelectedMemberId,
+  ] = useState("");
+
+  const [note, setNote] =
     useState("");
 
-  const [note, setNote] = useState("");
+  const [
+    savingKitId,
+    setSavingKitId,
+  ] = useState<string | null>(null);
 
-  const [savingKitId, setSavingKitId] =
-    useState<string | null>(null);
-
-  const [isLoggedIn, setIsLoggedIn] =
-    useState(false);
+  const [
+    isLoggedIn,
+    setIsLoggedIn,
+  ] = useState(false);
 
   useEffect(() => {
     void loadPage();
@@ -117,22 +128,28 @@ export default function KitPageClient() {
     async function checkAuth() {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
-      setIsLoggedIn(Boolean(user));
+      setIsLoggedIn(
+        Boolean(user)
+      );
     }
 
     void checkAuth();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setIsLoggedIn(
-          Boolean(session?.user)
-        );
-      }
-    );
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setIsLoggedIn(
+            Boolean(
+              session?.user
+            )
+          );
+        }
+      );
 
     return () => {
       subscription.unsubscribe();
@@ -143,28 +160,30 @@ export default function KitPageClient() {
     setLoading(true);
     setMessage("");
 
-    const [kitsResult, membersResult] =
-      await Promise.all([
-        supabase
-          .from("club_kits")
-          .select(`
+    const [
+      kitsResult,
+      membersResult,
+    ] = await Promise.all([
+      supabase
+        .from("club_kits")
+        .select(`
+          id,
+          name,
+          updated_at,
+          current_holder_member_id,
+
+          current_holder:members (
             id,
-            name,
-            updated_at,
-            current_holder_member_id,
+            name
+          )
+        `)
+        .order("name"),
 
-            current_holder:members (
-              id,
-              name
-            )
-          `)
-          .order("name"),
-
-        supabase
-          .from("members")
-          .select("id, name")
-          .order("name"),
-      ]);
+      supabase
+        .from("members")
+        .select("id, name")
+        .order("name"),
+    ]);
 
     if (kitsResult.error) {
       setMessage(
@@ -185,36 +204,48 @@ export default function KitPageClient() {
     }
 
     const loadedKits =
-      (kitsResult.data ?? []) as unknown as Kit[];
+      (kitsResult.data ??
+        []) as unknown as Kit[];
 
     setKits(loadedKits);
 
     setMembers(
-      (membersResult.data ?? []) as Member[]
+      (membersResult.data ??
+        []) as Member[]
     );
 
     if (
       requestedKitId &&
       loadedKits.some(
         (kit) =>
-          kit.id === requestedKitId
+          kit.id ===
+          requestedKitId
       )
     ) {
-      setOpenKitId(requestedKitId);
+      setOpenKitId(
+        requestedKitId
+      );
 
-      window.setTimeout(() => {
-        document
-          .getElementById(
-            `kit-${requestedKitId}`
-          )
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "center",
-          });
-      }, 100);
+      window.setTimeout(
+        () => {
+          document
+            .getElementById(
+              `handoff-${requestedKitId}`
+            )
+            ?.scrollIntoView({
+              behavior:
+                "smooth",
+              block:
+                "start",
+            });
+        },
+        150
+      );
     }
 
-    await loadHandoffs(loadedKits);
+    await loadHandoffs(
+      loadedKits
+    );
 
     setLoading(false);
   }
@@ -222,18 +253,27 @@ export default function KitPageClient() {
   async function loadHandoffs(
     loadedKits: Kit[]
   ) {
-    if (loadedKits.length === 0) {
+    if (
+      loadedKits.length ===
+      0
+    ) {
       setHandoffs({});
       return;
     }
 
-    const kitIds = loadedKits.map(
-      (kit) => kit.id
-    );
+    const kitIds =
+      loadedKits.map(
+        (kit) => kit.id
+      );
 
-    const { data, error } =
+    const {
+      data,
+      error,
+    } =
       await supabase
-        .from("kit_handoffs")
+        .from(
+          "kit_handoffs"
+        )
         .select(`
           id,
           kit_id,
@@ -250,10 +290,17 @@ export default function KitPageClient() {
             name
           )
         `)
-        .in("kit_id", kitIds)
-        .order("handed_off_at", {
-          ascending: false,
-        });
+        .in(
+          "kit_id",
+          kitIds
+        )
+        .order(
+          "handed_off_at",
+          {
+            ascending:
+              false,
+          }
+        );
 
     if (error) {
       console.error(
@@ -265,50 +312,119 @@ export default function KitPageClient() {
     }
 
     const grouped:
-      Record<string, Handoff[]> = {};
+      Record<
+        string,
+        Handoff[]
+      > = {};
 
-    for (const kit of loadedKits) {
+    for (
+      const kit of
+      loadedKits
+    ) {
       grouped[kit.id] = [];
     }
 
-    for (const row of data ?? []) {
+    for (
+      const row of
+      data ?? []
+    ) {
       const kitId = (
         row as {
           kit_id: string;
         }
       ).kit_id;
 
-      if (!grouped[kitId]) {
-        grouped[kitId] = [];
+      if (
+        !grouped[kitId]
+      ) {
+        grouped[kitId] =
+          [];
       }
 
-      grouped[kitId].push(
+      grouped[
+        kitId
+      ].push(
         row as unknown as Handoff
       );
     }
 
-    setHandoffs(grouped);
+    setHandoffs(
+      grouped
+    );
   }
 
   function startHandoff(
     kit: Kit
   ) {
-    setOpenKitId(kit.id);
-    setSelectedMemberId("");
+    setOpenKitId(
+      kit.id
+    );
+
+    setSelectedMemberId(
+      ""
+    );
+
     setNote("");
     setMessage("");
+
+    /*
+     * Wait until React renders
+     * the handoff form, then
+     * scroll directly to it.
+     */
+    window.setTimeout(
+      () => {
+        document
+          .getElementById(
+            `handoff-${kit.id}`
+          )
+          ?.scrollIntoView({
+            behavior:
+              "smooth",
+            block:
+              "start",
+          });
+      },
+      120
+    );
   }
 
   function cancelHandoff() {
     setOpenKitId(null);
     setSelectedMemberId("");
     setNote("");
+
+    /*
+     * Bring user back to
+     * the kit card.
+     */
+    window.setTimeout(
+      () => {
+        if (
+          openKitId
+        ) {
+          document
+            .getElementById(
+              `kit-${openKitId}`
+            )
+            ?.scrollIntoView({
+              behavior:
+                "smooth",
+              block:
+                "start",
+            });
+        }
+      },
+      100
+    );
   }
 
   async function confirmHandoff(
     kit: Kit
   ) {
-    if (!selectedMemberId) {
+    if (
+      !selectedMemberId
+    ) {
       setMessage(
         "Please choose the member receiving the kit."
       );
@@ -327,7 +443,10 @@ export default function KitPageClient() {
       return;
     }
 
-    setSavingKitId(kit.id);
+    setSavingKitId(
+      kit.id
+    );
+
     setMessage("");
 
     try {
@@ -335,40 +454,57 @@ export default function KitPageClient() {
         await fetch(
           "/api/kits/handoff",
           {
-            method: "POST",
+            method:
+              "POST",
 
             headers: {
               "Content-Type":
                 "application/json",
             },
 
-            body: JSON.stringify({
-              kitId: kit.id,
+            body:
+              JSON.stringify(
+                {
+                  kitId:
+                    kit.id,
 
-              memberId:
-                selectedMemberId,
+                  memberId:
+                    selectedMemberId,
 
-              note:
-                note.trim() || null,
-            }),
+                  note:
+                    note.trim() ||
+                    null,
+                }
+              ),
           }
         );
 
       const result =
         await response.json();
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         setMessage(
           result.error ||
             "Unable to update the kit."
         );
 
-        setSavingKitId(null);
+        setSavingKitId(
+          null
+        );
+
         return;
       }
 
-      setOpenKitId(null);
-      setSelectedMemberId("");
+      setOpenKitId(
+        null
+      );
+
+      setSelectedMemberId(
+        ""
+      );
+
       setNote("");
 
       await loadPage();
@@ -376,12 +512,37 @@ export default function KitPageClient() {
       setMessage(
         `✅ ${result.message}`
       );
+
+      /*
+       * After successful handoff,
+       * take the user back to the
+       * updated kit card so they
+       * can immediately see the
+       * new holder.
+       */
+      window.setTimeout(
+        () => {
+          document
+            .getElementById(
+              `kit-${kit.id}`
+            )
+            ?.scrollIntoView({
+              behavior:
+                "smooth",
+              block:
+                "start",
+            });
+        },
+        200
+      );
     } catch {
       setMessage(
         "Unable to update the kit. Please try again."
       );
     } finally {
-      setSavingKitId(null);
+      setSavingKitId(
+        null
+      );
     }
   }
 
@@ -469,359 +630,414 @@ export default function KitPageClient() {
         )}
 
         {!loading &&
-          kits.length === 0 && (
+          kits.length ===
+            0 && (
             <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 text-slate-600 shadow-sm">
               No club kits found.
             </div>
           )}
 
         {!loading &&
-          kits.length > 0 && (
+          kits.length >
+            0 && (
             <section className="mt-8 grid gap-6 lg:grid-cols-2">
-              {kits.map((kit) => {
-                const holder =
-                  getRelation(
-                    kit.current_holder
-                  );
+              {kits.map(
+                (kit) => {
+                  const holder =
+                    getRelation(
+                      kit.current_holder
+                    );
 
-                const kitHistory =
-                  handoffs[kit.id] ?? [];
+                  const kitHistory =
+                    handoffs[
+                      kit.id
+                    ] ?? [];
 
-                const isOpen =
-                  openKitId === kit.id;
+                  const isOpen =
+                    openKitId ===
+                    kit.id;
 
-                const isHistoryExpanded =
-                  expandedHistoryKitId ===
-                  kit.id;
+                  const isHistoryExpanded =
+                    expandedHistoryKitId ===
+                    kit.id;
 
-                const visibleHistory =
-                  isHistoryExpanded
-                    ? kitHistory
-                    : kitHistory.slice(
-                        0,
-                        3
-                      );
+                  const visibleHistory =
+                    isHistoryExpanded
+                      ? kitHistory
+                      : kitHistory.slice(
+                          0,
+                          3
+                        );
 
-                const tracker =
-                  KIT_TRACKERS[
-                    kit.name
-                  ];
+                  const tracker =
+                    KIT_TRACKERS[
+                      kit.name
+                    ];
 
-                return (
-                  <article
-                    id={`kit-${kit.id}`}
-                    key={kit.id}
-                    className="app-card overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm"
-                  >
-                    <div className="bg-gradient-to-r from-blue-50 via-white to-blue-50 p-6">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                            Club Kit
-                          </p>
+                  return (
+                    <article
+                      id={`kit-${kit.id}`}
+                      key={
+                        kit.id
+                      }
+                      className="app-card scroll-mt-6 overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm"
+                    >
+                      <div className="bg-gradient-to-r from-blue-50 via-white to-blue-50 p-6">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                              Club Kit
+                            </p>
 
-                          <h2 className="mt-1 text-2xl font-bold text-blue-950">
-                            🏏 {kit.name}
-                          </h2>
+                            <h2 className="mt-1 text-2xl font-bold text-blue-950">
+                              🏏{" "}
+                              {
+                                kit.name
+                              }
+                            </h2>
+                          </div>
+
+                          <span className="text-3xl">
+                            🎒
+                          </span>
                         </div>
 
-                        <span className="text-3xl">
-                          🎒
-                        </span>
-                      </div>
+                        {/* CURRENT HOLDER */}
 
-                      {/* CURRENT HOLDER */}
-
-                      <div className="mt-5 rounded-xl bg-white p-4 shadow-sm">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Current Holder
-                        </p>
-
-                        <p className="mt-2 text-xl font-bold text-slate-900">
-                          {holder
-                            ? `👤 ${holder.name}`
-                            : "Not assigned yet"}
-                        </p>
-
-                        {holder && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            Since{" "}
-                            {formatDate(
-                              kit.updated_at
-                            )}
+                        <div className="mt-5 rounded-xl bg-white p-4 shadow-sm">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Current
+                            Holder
                           </p>
-                        )}
-                      </div>
 
-                      {/* HAND OFF KIT FIRST */}
+                          <p className="mt-2 text-xl font-bold text-slate-900">
+                            {holder
+                              ? `👤 ${holder.name}`
+                              : "Not assigned yet"}
+                          </p>
 
-                      {!isOpen && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            startHandoff(
-                              kit
-                            )
-                          }
-                          className="app-primary-button mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
-                        >
-                          🔄 Hand Off Kit
-                        </button>
-                      )}
+                          {holder && (
+                            <p className="mt-1 text-xs text-slate-500">
+                              Since{" "}
+                              {formatDate(
+                                kit.updated_at
+                              )}
+                            </p>
+                          )}
+                        </div>
 
-                      {/* SEEKTAG TRACKER BELOW */}
+                        {/* HANDOFF */}
 
-                      {isLoggedIn &&
-                        tracker && (
-                          <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                                  📍 Kit Tracker
-                                </p>
-
-                                <p className="mt-2 font-bold text-slate-900">
-                                  🟢 {tracker.name} Connected
-                                </p>
-
-                               <p className="mt-1 text-sm text-slate-600">
-  Open{" "}
-  {tracker.platform === "google"
-    ? "Google Find Hub"
-    : "Apple Find My"}{" "}
-  to see this kit&apos;s tracker location.
-</p>
-                              </div>
-
-                              <span className="text-2xl">
-                                📡
-                              </span>
-                            </div>
-
-                            <a
-                              href={
-                                tracker.url
-                              }
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-4 block w-full rounded-lg bg-emerald-700 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-800"
-                            >
-                              📍 Locate {kit.name}
-                            </a>
-                          </div>
-                        )}
-                    </div>
-
-                    {/* HANDOFF FORM */}
-
-                    {isOpen && (
-                      <div className="border-t border-slate-200 p-6">
-                        <h3 className="font-semibold text-slate-900">
-                          🔄 Who has the kit now?
-                        </h3>
-
-                        <p className="mt-1 text-sm text-slate-500">
-                          Pick the person taking the kit home.
-                        </p>
-
-                        <label className="mt-4 block">
-                          <span className="text-sm font-medium text-slate-700">
-                            Member
-                          </span>
-
-                          <select
-                            value={
-                              selectedMemberId
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              setSelectedMemberId(
-                                event.target
-                                  .value
-                              )
-                            }
-                            className="mt-2 w-full rounded-lg border border-slate-400 bg-white px-3 py-3 font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="">
-                              Select member
-                            </option>
-
-                            {members.map(
-                              (member) => (
-                                <option
-                                  key={
-                                    member.id
-                                  }
-                                  value={
-                                    member.id
-                                  }
-                                >
-                                  {
-                                    member.name
-                                  }
-                                </option>
-                              )
-                            )}
-                          </select>
-                        </label>
-
-                        <label className="mt-4 block">
-                          <span className="text-sm font-medium text-slate-700">
-                            Note{" "}
-                            <span className="font-normal text-slate-400">
-                              (optional)
-                            </span>
-                          </span>
-
-                          <textarea
-                            rows={2}
-                            value={note}
-                            onChange={(
-                              event
-                            ) =>
-                              setNote(
-                                event.target
-                                  .value
-                              )
-                            }
-                            placeholder="Example: Bring to Sunday's game."
-                            className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900"
-                          />
-                        </label>
-
-                        <div className="mt-5 flex flex-wrap gap-3">
+                        {!isOpen && (
                           <button
                             type="button"
-                            disabled={
-                              savingKitId ===
-                              kit.id
-                            }
                             onClick={() =>
-                              void confirmHandoff(
+                              startHandoff(
                                 kit
                               )
                             }
-                            className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="app-primary-button mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                           >
-                            {savingKitId ===
-                            kit.id
-                              ? "Saving…"
-                              : "✅ Confirm Handoff"}
+                            🔄 Hand
+                            Off Kit
                           </button>
+                        )}
 
-                          <button
-                            type="button"
-                            disabled={
-                              savingKitId ===
-                              kit.id
-                            }
-                            onClick={
-                              cancelHandoff
-                            }
-                            className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                        {/* TRACKER */}
+
+                        {isLoggedIn &&
+                          tracker && (
+                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                                    📍 Kit
+                                    Tracker
+                                  </p>
+
+                                  <p className="mt-2 font-bold text-slate-900">
+                                    🟢{" "}
+                                    {
+                                      tracker.name
+                                    }{" "}
+                                    Connected
+                                  </p>
+
+                                  <p className="mt-1 text-sm text-slate-600">
+                                    Open{" "}
+                                    {tracker.platform ===
+                                    "google"
+                                      ? "Google Find Hub"
+                                      : "Apple Find My"}{" "}
+                                    to see
+                                    this
+                                    kit&apos;s
+                                    tracker
+                                    location.
+                                  </p>
+                                </div>
+
+                                <span className="text-2xl">
+                                  📡
+                                </span>
+                              </div>
+
+                              <a
+                                href={
+                                  tracker.url
+                                }
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-4 block w-full rounded-lg bg-emerald-700 px-4 py-3 text-center font-semibold text-white hover:bg-emerald-800"
+                              >
+                                📍 Locate{" "}
+                                {
+                                  kit.name
+                                }
+                              </a>
+                            </div>
+                          )}
                       </div>
-                    )}
 
-                    {/* HISTORY */}
+                      {/* HANDOFF FORM */}
 
-                    <div className="border-t border-slate-200 p-6">
-                      <div className="flex items-center justify-between gap-3">
-                        <h3 className="font-semibold text-slate-900">
-                          🕘 Recent Handoffs
-                        </h3>
+                      {isOpen && (
+                        <div
+                          id={`handoff-${kit.id}`}
+                          className="scroll-mt-4 border-t border-slate-200 p-6"
+                        >
+                          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                            <h3 className="text-lg font-bold text-slate-900">
+                              🔄 Update
+                              Kit
+                              Handoff
+                            </h3>
+
+                            <p className="mt-1 text-sm text-slate-600">
+                              Select
+                              the
+                              registered
+                              member who
+                              is taking
+                              this kit.
+                            </p>
+                          </div>
+
+                          <label className="mt-5 block">
+                            <span className="text-sm font-medium text-slate-700">
+                              Member
+                            </span>
+
+                            <select
+                              value={
+                                selectedMemberId
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setSelectedMemberId(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                              className="mt-2 w-full rounded-lg border border-slate-400 bg-white px-3 py-3 font-medium text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            >
+                              <option value="">
+                                Select
+                                member
+                              </option>
+
+                              {members.map(
+                                (
+                                  member
+                                ) => (
+                                  <option
+                                    key={
+                                      member.id
+                                    }
+                                    value={
+                                      member.id
+                                    }
+                                  >
+                                    {
+                                      member.name
+                                    }
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </label>
+
+                          <label className="mt-4 block">
+                            <span className="text-sm font-medium text-slate-700">
+                              Note{" "}
+                              <span className="font-normal text-slate-400">
+                                (optional)
+                              </span>
+                            </span>
+
+                            <textarea
+                              rows={
+                                2
+                              }
+                              value={
+                                note
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setNote(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                              placeholder="Example: Bring to Sunday's game."
+                              className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900"
+                            />
+                          </label>
+
+                          <div className="mt-5 flex flex-wrap gap-3">
+                            <button
+                              type="button"
+                              disabled={
+                                savingKitId ===
+                                kit.id
+                              }
+                              onClick={() =>
+                                void confirmHandoff(
+                                  kit
+                                )
+                              }
+                              className="rounded-lg bg-green-700 px-5 py-3 font-semibold text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {savingKitId ===
+                              kit.id
+                                ? "Saving…"
+                                : "✅ Confirm Handoff"}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={
+                                savingKitId ===
+                                kit.id
+                              }
+                              onClick={
+                                cancelHandoff
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* HISTORY */}
+
+                      <div className="border-t border-slate-200 p-6">
+                        <div className="flex items-center justify-between gap-3">
+                          <h3 className="font-semibold text-slate-900">
+                            🕘 Recent
+                            Handoffs
+                          </h3>
+
+                          {kitHistory.length >
+                            0 && (
+                            <span className="text-xs text-slate-500">
+                              {
+                                kitHistory.length
+                              }{" "}
+                              total
+                            </span>
+                          )}
+                        </div>
+
+                        {kitHistory.length ===
+                          0 && (
+                          <p className="mt-3 text-sm text-slate-500">
+                            No
+                            handoffs
+                            recorded
+                            yet.
+                          </p>
+                        )}
+
+                        <div className="mt-4 space-y-3">
+                          {visibleHistory.map(
+                            (
+                              handoff
+                            ) => {
+                              const from =
+                                getRelation(
+                                  handoff.from_member
+                                );
+
+                              const to =
+                                getRelation(
+                                  handoff.to_member
+                                );
+
+                              return (
+                                <div
+                                  key={
+                                    handoff.id
+                                  }
+                                  className="rounded-xl bg-slate-50 p-4 text-sm"
+                                >
+                                  <p className="font-medium text-slate-900">
+                                    {from
+                                      ? `${from.name} → `
+                                      : ""}
+
+                                    {to?.name ??
+                                      "Unknown member"}
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {formatDate(
+                                      handoff.handed_off_at
+                                    )}
+                                  </p>
+
+                                  {handoff.note && (
+                                    <p className="mt-2 text-slate-600">
+                                      {
+                                        handoff.note
+                                      }
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            }
+                          )}
+                        </div>
 
                         {kitHistory.length >
-                          0 && (
-                          <span className="text-xs text-slate-500">
-                            {
-                              kitHistory.length
-                            }{" "}
-                            total
-                          </span>
+                          3 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedHistoryKitId(
+                                isHistoryExpanded
+                                  ? null
+                                  : kit.id
+                              )
+                            }
+                            className="mt-4 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                          >
+                            {isHistoryExpanded
+                              ? "↑ Show less"
+                              : `View all ${kitHistory.length} handoffs →`}
+                          </button>
                         )}
                       </div>
-
-                      {kitHistory.length ===
-                        0 && (
-                        <p className="mt-3 text-sm text-slate-500">
-                          No handoffs recorded yet.
-                        </p>
-                      )}
-
-                      <div className="mt-4 space-y-3">
-                        {visibleHistory.map(
-                          (handoff) => {
-                            const from =
-                              getRelation(
-                                handoff.from_member
-                              );
-
-                            const to =
-                              getRelation(
-                                handoff.to_member
-                              );
-
-                            return (
-                              <div
-                                key={
-                                  handoff.id
-                                }
-                                className="rounded-xl bg-slate-50 p-4 text-sm"
-                              >
-                                <p className="font-medium text-slate-900">
-                                  {from
-                                    ? `${from.name} → `
-                                    : ""}
-                                  {to?.name ??
-                                    "Unknown member"}
-                                </p>
-
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {formatDate(
-                                    handoff.handed_off_at
-                                  )}
-                                </p>
-
-                                {handoff.note && (
-                                  <p className="mt-2 text-slate-600">
-                                    {
-                                      handoff.note
-                                    }
-                                  </p>
-                                )}
-                              </div>
-                            );
-                          }
-                        )}
-                      </div>
-
-                      {kitHistory.length >
-                        3 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedHistoryKitId(
-                              isHistoryExpanded
-                                ? null
-                                : kit.id
-                            )
-                          }
-                          className="mt-4 w-full rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-700 hover:bg-blue-100"
-                        >
-                          {isHistoryExpanded
-                            ? "↑ Show less"
-                            : `View all ${kitHistory.length} handoffs →`}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+                    </article>
+                  );
+                }
+              )}
             </section>
           )}
       </div>
@@ -839,8 +1055,15 @@ function getRelation<T>(
     return null;
   }
 
-  if (Array.isArray(relation)) {
-    return relation[0] ?? null;
+  if (
+    Array.isArray(
+      relation
+    )
+  ) {
+    return (
+      relation[0] ??
+      null
+    );
   }
 
   return relation;
@@ -852,8 +1075,13 @@ function formatDate(
   return new Intl.DateTimeFormat(
     "en-US",
     {
-      dateStyle: "medium",
-      timeStyle: "short",
+      dateStyle:
+        "medium",
+
+      timeStyle:
+        "short",
     }
-  ).format(new Date(value));
+  ).format(
+    new Date(value)
+  );
 }
