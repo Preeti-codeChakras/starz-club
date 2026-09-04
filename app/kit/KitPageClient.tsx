@@ -80,13 +80,31 @@ const KIT_TRACKERS: Record<
 export default function KitPageClient() {
   const searchParams = useSearchParams();
 
-  const requestedKitId = searchParams.get("kit");
+  const requestedKitId =
+    searchParams.get("kit");
 
-  const [kits, setKits] = useState<Kit[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+  /*
+   * Transitional fallback.
+   *
+   * Right now Starz is the existing club.
+   * Later, when the app becomes fully global,
+   * this slug can come from the logged-in club
+   * or dynamic club route.
+   */
+  const clubSlug =
+    searchParams.get("club") ??
+    "starz";
+
+  const [kits, setKits] =
+    useState<Kit[]>([]);
+
+  const [members, setMembers] =
+    useState<Member[]>([]);
 
   const [handoffs, setHandoffs] =
-    useState<Record<string, Handoff[]>>({});
+    useState<
+      Record<string, Handoff[]>
+    >({});
 
   const [loading, setLoading] =
     useState(true);
@@ -94,13 +112,17 @@ export default function KitPageClient() {
   const [message, setMessage] =
     useState("");
 
-  const [openKitId, setOpenKitId] =
-    useState<string | null>(null);
+  const [
+    openKitId,
+    setOpenKitId,
+  ] = useState<string | null>(null);
 
   const [
     expandedHistoryKitId,
     setExpandedHistoryKitId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     selectedMemberId,
@@ -156,98 +178,142 @@ export default function KitPageClient() {
     };
   }, []);
 
-  async function loadPage() {
+  /*
+   * =======================================================
+   * LOAD PAGE
+   *
+   * Public kit/member data now comes through our server
+   * route instead of anonymous direct Supabase access.
+   *
+   * autoOpenRequestedKit:
+   * - true on first QR load
+   * - false after a successful handoff
+   *
+   * This prevents the QR form reopening after save.
+   * =======================================================
+   */
+
+  async function loadPage(
+    options: {
+      autoOpenRequestedKit?: boolean;
+    } = {}
+  ) {
+    const {
+      autoOpenRequestedKit = true,
+    } = options;
+
     setLoading(true);
     setMessage("");
 
-    const [
-      kitsResult,
-      membersResult,
-    ] = await Promise.all([
-      supabase
-        .from("club_kits")
-        .select(`
-          id,
-          name,
-          updated_at,
-          current_holder_member_id,
-
-          current_holder:members (
-            id,
-            name
-          )
-        `)
-        .order("name"),
-
-      supabase
-        .from("members")
-        .select("id, name")
-        .order("name"),
-    ]);
-
-    if (kitsResult.error) {
-      setMessage(
-        `Unable to load club kits: ${kitsResult.error.message}`
-      );
-
-      setLoading(false);
-      return;
-    }
-
-    if (membersResult.error) {
-      setMessage(
-        `Unable to load members: ${membersResult.error.message}`
-      );
-
-      setLoading(false);
-      return;
-    }
-
-    const loadedKits =
-      (kitsResult.data ??
-        []) as unknown as Kit[];
-
-    setKits(loadedKits);
-
-    setMembers(
-      (membersResult.data ??
-        []) as Member[]
-    );
-
-    if (
-      requestedKitId &&
-      loadedKits.some(
-        (kit) =>
-          kit.id ===
-          requestedKitId
-      )
-    ) {
-      setOpenKitId(
+    try {
+      const query =
         requestedKitId
+          ? `kit=${encodeURIComponent(
+              requestedKitId
+            )}`
+          : `club=${encodeURIComponent(
+              clubSlug
+            )}`;
+
+      const response =
+        await fetch(
+          `/api/kits/handoff?${query}`,
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
+
+      const result =
+        await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          result.error ||
+            "Unable to load club kits."
+        );
+
+        return;
+      }
+
+      const loadedKits =
+        (result.kits ??
+          []) as Kit[];
+
+      const loadedMembers =
+        (result.members ??
+          []) as Member[];
+
+      setKits(loadedKits);
+
+      setMembers(
+        loadedMembers
       );
 
-      window.setTimeout(
-        () => {
-          document
-            .getElementById(
-              `handoff-${requestedKitId}`
-            )
-            ?.scrollIntoView({
-              behavior:
-                "smooth",
-              block:
-                "start",
-            });
-        },
-        150
+      /*
+       * If user arrived from a specific
+       * kit QR code, automatically open
+       * that kit's handoff form.
+       *
+       * Do NOT do this after a successful
+       * handoff refresh.
+       */
+
+      if (
+        autoOpenRequestedKit &&
+        requestedKitId &&
+        loadedKits.some(
+          (kit) =>
+            kit.id ===
+            requestedKitId
+        )
+      ) {
+        setOpenKitId(
+          requestedKitId
+        );
+
+        window.setTimeout(
+          () => {
+            document
+              .getElementById(
+                `handoff-${requestedKitId}`
+              )
+              ?.scrollIntoView({
+                behavior:
+                  "smooth",
+
+                block:
+                  "start",
+              });
+          },
+          150
+        );
+      }
+
+      /*
+       * Handoff history stays behind
+       * authenticated Supabase RLS.
+       *
+       * Anonymous QR visitors may simply
+       * receive no history, while logged-in
+       * club members can see history.
+       */
+
+      await loadHandoffs(
+        loadedKits
       );
+    } catch (error) {
+      console.error(
+        "Unable to load kit page:",
+        error
+      );
+
+      setMessage(
+        "Unable to load club kits. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    await loadHandoffs(
-      loadedKits
-    );
-
-    setLoading(false);
   }
 
   async function loadHandoffs(
@@ -303,10 +369,18 @@ export default function KitPageClient() {
         );
 
     if (error) {
-      console.error(
-        "Unable to load kit history:",
-        error
+      /*
+       * Anonymous QR users may not
+       * have access to kit history.
+       *
+       * That should NOT stop the
+       * public handoff page from loading.
+       */
+      console.info(
+        "Kit history unavailable for this session."
       );
+
+      setHandoffs({});
 
       return;
     }
@@ -381,6 +455,7 @@ export default function KitPageClient() {
           ?.scrollIntoView({
             behavior:
               "smooth",
+
             block:
               "start",
           });
@@ -390,8 +465,15 @@ export default function KitPageClient() {
   }
 
   function cancelHandoff() {
+    const kitId =
+      openKitId;
+
     setOpenKitId(null);
-    setSelectedMemberId("");
+
+    setSelectedMemberId(
+      ""
+    );
+
     setNote("");
 
     /*
@@ -400,16 +482,15 @@ export default function KitPageClient() {
      */
     window.setTimeout(
       () => {
-        if (
-          openKitId
-        ) {
+        if (kitId) {
           document
             .getElementById(
-              `kit-${openKitId}`
+              `kit-${kitId}`
             )
             ?.scrollIntoView({
               behavior:
                 "smooth",
+
               block:
                 "start",
             });
@@ -490,10 +571,6 @@ export default function KitPageClient() {
             "Unable to update the kit."
         );
 
-        setSavingKitId(
-          null
-        );
-
         return;
       }
 
@@ -507,7 +584,18 @@ export default function KitPageClient() {
 
       setNote("");
 
-      await loadPage();
+      /*
+       * Reload updated kit/member data.
+       *
+       * Important:
+       * don't auto-open the QR handoff
+       * form again after saving.
+       */
+
+      await loadPage({
+        autoOpenRequestedKit:
+          false,
+      });
 
       setMessage(
         `✅ ${result.message}`
@@ -517,9 +605,9 @@ export default function KitPageClient() {
        * After successful handoff,
        * take the user back to the
        * updated kit card so they
-       * can immediately see the
-       * new holder.
+       * immediately see the new holder.
        */
+
       window.setTimeout(
         () => {
           document
@@ -529,13 +617,19 @@ export default function KitPageClient() {
             ?.scrollIntoView({
               behavior:
                 "smooth",
+
               block:
                 "start",
             });
         },
         200
       );
-    } catch {
+    } catch (error) {
+      console.error(
+        "Unable to update kit:",
+        error
+      );
+
       setMessage(
         "Unable to update the kit. Please try again."
       );
@@ -547,9 +641,14 @@ export default function KitPageClient() {
   }
 
   async function copyKitLink() {
+    const kitUrl =
+      `https://www.starzcricketclub.com/kit?club=${encodeURIComponent(
+        clubSlug
+      )}`;
+
     try {
       await navigator.clipboard.writeText(
-        "https://www.starzcricketclub.com/kit"
+        kitUrl
       );
 
       setMessage(
@@ -561,6 +660,14 @@ export default function KitPageClient() {
       );
     }
   }
+
+  const sharedKitUrl =
+    `https://www.starzcricketclub.com/kit?club=${encodeURIComponent(
+      clubSlug
+    )}`;
+
+  const whatsappMessage =
+    `🏏 Starz Kit Tracker — see who has each kit or update a handoff: ${sharedKitUrl}`;
 
   return (
     <main className="app-page px-4 py-8 sm:px-6 sm:py-10">
@@ -578,7 +685,10 @@ export default function KitPageClient() {
           </h1>
 
           <p className="mt-2 text-slate-600">
-            See who has each Starz kit and update it whenever the kit changes hands.
+            See who has each Starz
+            kit and update it
+            whenever the kit changes
+            hands.
           </p>
         </header>
 
@@ -590,7 +700,9 @@ export default function KitPageClient() {
           </p>
 
           <p className="mt-1 text-sm text-blue-800">
-            Share this in WhatsApp so whoever takes a kit can update it quickly.
+            Share this in WhatsApp
+            so whoever takes a kit
+            can update it quickly.
           </p>
 
           <div className="mt-3 flex flex-wrap gap-3">
@@ -606,7 +718,7 @@ export default function KitPageClient() {
 
             <a
               href={`https://wa.me/?text=${encodeURIComponent(
-                "🏏 Starz Kit Tracker — see who has each kit or update a handoff: https://www.starzcricketclub.com/kit"
+                whatsappMessage
               )}`}
               target="_blank"
               rel="noreferrer"
@@ -706,8 +818,7 @@ export default function KitPageClient() {
 
                         <div className="mt-5 rounded-xl bg-white p-4 shadow-sm">
                           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Current
-                            Holder
+                            Current Holder
                           </p>
 
                           <p className="mt-2 text-xl font-bold text-slate-900">
@@ -738,8 +849,7 @@ export default function KitPageClient() {
                             }
                             className="app-primary-button mt-5 w-full rounded-lg bg-blue-900 px-5 py-3 font-semibold text-white hover:bg-blue-800"
                           >
-                            🔄 Hand
-                            Off Kit
+                            🔄 Hand Off Kit
                           </button>
                         )}
 
@@ -769,8 +879,7 @@ export default function KitPageClient() {
                                     "google"
                                       ? "Google Find Hub"
                                       : "Apple Find My"}{" "}
-                                    to see
-                                    this
+                                    to see this
                                     kit&apos;s
                                     tracker
                                     location.
@@ -809,13 +918,11 @@ export default function KitPageClient() {
                           <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                             <h3 className="text-lg font-bold text-slate-900">
                               🔄 Update
-                              Kit
-                              Handoff
+                              Kit Handoff
                             </h3>
 
                             <p className="mt-1 text-sm text-slate-600">
-                              Select
-                              the
+                              Select the
                               registered
                               member who
                               is taking
@@ -958,10 +1065,8 @@ export default function KitPageClient() {
                         {kitHistory.length ===
                           0 && (
                           <p className="mt-3 text-sm text-slate-500">
-                            No
-                            handoffs
-                            recorded
-                            yet.
+                            No handoffs
+                            recorded yet.
                           </p>
                         )}
 
