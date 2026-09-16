@@ -7,13 +7,15 @@ export default function ProfileCompletionWarning() {
   const { profile, loadingProfile } =
     useCurrentProfile();
 
-  if (
-    loadingProfile ||
-    !profile ||
-    profile.isProfileComplete
-  ) {
-    return null;
-  }
+if (
+  loadingProfile ||
+  !profile ||
+  profile.isProfileComplete ||
+  profile.appRole === "Admin"
+) {
+  return null;
+}
+
 
   return (
     <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
