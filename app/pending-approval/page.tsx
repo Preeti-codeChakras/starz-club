@@ -7,7 +7,9 @@ import { supabase } from "@/lib/supabase/client";
 
 export default function PendingApprovalPage() {
   const router = useRouter();
+
   const [checking, setChecking] = useState(true);
+  const [clubName, setClubName] = useState("your club");
 
   useEffect(() => {
     async function checkStatus() {
@@ -18,6 +20,44 @@ export default function PendingApprovalPage() {
       if (!user) {
         router.push("/auth");
         return;
+      }
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from("profiles")
+        .select("club_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error(
+          "Unable to load profile:",
+          profileError
+        );
+      }
+
+      if (profile?.club_id) {
+        const {
+          data: club,
+          error: clubError,
+        } = await supabase
+          .from("clubs")
+          .select("name")
+          .eq("id", profile.club_id)
+          .maybeSingle();
+
+        if (clubError) {
+          console.error(
+            "Unable to load club:",
+            clubError
+          );
+        }
+
+        if (club?.name) {
+          setClubName(club.name);
+        }
       }
 
       const { data } = await supabase
@@ -61,9 +101,9 @@ export default function PendingApprovalPage() {
           </h1>
 
           <p className="mt-3 text-slate-600">
-            Your player profile has been submitted. A Starz
-            Club Admin must approve it before full access is
-            enabled.
+            Your player profile has been submitted. A{" "}
+            <strong>{clubName}</strong> Admin must approve it
+            before full access is enabled.
           </p>
 
           <p className="mt-4 text-sm text-slate-500">

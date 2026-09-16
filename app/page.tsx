@@ -5,6 +5,7 @@ import ProfileCompletionWarning from "@/components/ProfileCompleteWarning";
 import PendingApprovalsCard from "@/components/PendingApprovalsCard";
 import BirthdayBanner from "@/components/BirthdayBanner";
 import OnamBanner from "@/components/OnamBanner";
+import CurrentClubBrand from "@/components/CurrentClubBrand";
 
 type MenuItem = {
   name: string;
@@ -127,67 +128,31 @@ export default function Home() {
               sm:justify-between
             "
           >
-            {/* CLUB BRAND */}
+          {/* CLUB BRAND */}
 
-            <div className="flex items-center gap-3">
-              <div
-                className="
-                  flex
-                  h-11
-                  w-11
-                  shrink-0
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-white/10
-                  text-2xl
-                  shadow-sm
-                  backdrop-blur-sm
+<div className="flex items-center gap-3">
+  <CurrentClubBrand />
 
-                  sm:h-12
-                  sm:w-12
-                  sm:text-3xl
-                "
-              >
-                ⭐
-              </div>
-
-              <div>
-                {/* TITLE + ABOUT US */}
-
-                <div className="flex items-center gap-3">
-                  <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
-                    Starz Club
-                  </h1>
-
-                  <Link
-                    href="/about"
-                    className="
-                      rounded-lg
-                      border
-                      border-white/30
-                      bg-white/10
-                      px-3
-                      py-1.5
-                      text-xs
-                      font-medium
-                      text-white
-                      transition
-                      hover:bg-white/20
-
-                      sm:text-sm
-                    "
-                  >
-                    About Us
-                  </Link>
-                </div>
-
-                <p className="mt-0.5 text-xs text-blue-100 sm:text-sm">
-                  Cricket, community and
-                  connection
-                </p>
-              </div>
-            </div>
+  <Link
+    href="/about"
+    className="
+      rounded-lg
+      border
+      border-white/30
+      bg-white/10
+      px-3
+      py-1.5
+      text-xs
+      font-medium
+      text-white
+      transition
+      hover:bg-white/20
+      sm:text-sm
+    "
+  >
+    About Us
+  </Link>
+</div>
 
             {/* USER + THEME CONTROLS */}
 
@@ -433,8 +398,7 @@ export default function Home() {
           [writing-mode:vertical-rl]
         "
       >
-        Built with ❤️ by Preeti • Starz
-        Club
+        • Built with ❤️ by Preeti •
       </div>
     </main>
   );

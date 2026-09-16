@@ -167,13 +167,14 @@ export default function CompleteProfilePage() {
       return;
     }
 
-    const { error: profileUpdateError } = await supabase
-      .from("profiles")
-      .update({
-        member_id: createdMember.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", userId);
+    
+
+    const { error: profileUpdateError } = await supabase.rpc(
+  "link_my_member_profile",
+  {
+    p_member_id: createdMember.id,
+  }
+);
 
     if (profileUpdateError) {
       setMessage(
