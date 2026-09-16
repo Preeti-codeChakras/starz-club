@@ -20,17 +20,12 @@ type InviteRow = {
   expires_at: string | null;
 };
 
-function inviteExpired(
-  expiresAt: string | null
-) {
+function inviteExpired(expiresAt: string | null) {
   if (!expiresAt) {
     return false;
   }
 
-  return (
-    new Date(expiresAt).getTime() <=
-    Date.now()
-  );
+  return new Date(expiresAt).getTime() <= Date.now();
 }
 
 /*
@@ -39,84 +34,186 @@ function inviteExpired(
  *
  * Public invite validation.
  *
- * Example:
- * /api/clubs/invite?token=<TOKEN>
+ * Supports:
  *
- * Returns only safe club information.
- * It never exposes the invite table directly to anon users.
+ * /api/clubs/invite?token=<UUID>
+ *
+ * OR
+ *
+ * /api/clubs/invite?slug=starz
+ *
+ * Existing UUID invite links continue to work.
+ * Friendly club URLs can use /join/starz.
  * =========================================================
  */
 
-export async function GET(
-  request: Request
-) {
+export async function GET(request: Request) {
   try {
-    const url =
-      new URL(request.url);
+    const url = new URL(request.url);
 
-    const token =
-      url.searchParams
-        .get("token")
-        ?.trim();
+    const token = url.searchParams.get("token")?.trim() || "";
+    const slug =
+      url.searchParams.get("slug")?.trim().toLowerCase() || "";
 
-    if (!token) {
+    if (!token && !slug) {
       return NextResponse.json(
         {
-          error:
-            "Invite token is required.",
+          error: "Invite token or club slug is required.",
         },
         { status: 400 }
       );
     }
 
-    const {
-      data: invite,
-      error: inviteError,
-    } = await supabaseAdmin
-      .from("club_invites")
-      .select(
-        `
-        id,
-        club_id,
-        token,
-        is_active,
-        expires_at
-        `
-      )
-      .eq("token", token)
-      .maybeSingle<InviteRow>();
+    let invite: InviteRow | null = null;
 
-    if (inviteError) {
-      console.error(
-        "Invite lookup error:",
-        inviteError
-      );
+    /*
+     * -----------------------------------------------------
+     * Existing UUID-token flow
+     * -----------------------------------------------------
+     */
+    if (token) {
+      const {
+        data,
+        error: inviteError,
+      } = await supabaseAdmin
+        .from("club_invites")
+        .select(
+          `
+          id,
+          club_id,
+          token,
+          is_active,
+          expires_at
+          `
+        )
+        .eq("token", token)
+        .maybeSingle<InviteRow>();
 
-      return NextResponse.json(
-        {
-          error:
-            "Unable to validate this invite.",
-        },
-        { status: 500 }
-      );
+      if (inviteError) {
+        console.error(
+          "Invite lookup error:",
+          inviteError
+        );
+
+        return NextResponse.json(
+          {
+            error: "Unable to validate this invite.",
+          },
+          { status: 500 }
+        );
+      }
+
+      invite = data;
     }
 
+    /*
+     * -----------------------------------------------------
+     * Friendly slug flow
+     *
+     * Example:
+     * /join/starz
+     * -----------------------------------------------------
+     */
+    if (!token && slug) {
+      const {
+        data: clubBySlug,
+        error: clubLookupError,
+      } = await supabaseAdmin
+        .from("clubs")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      if (clubLookupError) {
+        console.error(
+          "Club slug lookup error:",
+          clubLookupError
+        );
+
+        return NextResponse.json(
+          {
+            error: "Unable to find this club.",
+          },
+          { status: 500 }
+        );
+      }
+
+      if (!clubBySlug) {
+        return NextResponse.json(
+          {
+            error: "This club does not exist.",
+          },
+          { status: 404 }
+        );
+      }
+
+      /*
+       * Get the newest active invite for this club.
+       *
+       * We also check expiry below.
+       */
+      const {
+        data: invites,
+        error: inviteLookupError,
+      } = await supabaseAdmin
+        .from("club_invites")
+        .select(
+          `
+          id,
+          club_id,
+          token,
+          is_active,
+          expires_at
+          `
+        )
+        .eq("club_id", clubBySlug.id)
+        .eq("is_active", true)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (inviteLookupError) {
+        console.error(
+          "Club invite lookup error:",
+          inviteLookupError
+        );
+
+        return NextResponse.json(
+          {
+            error: "Unable to load this club invitation.",
+          },
+          { status: 500 }
+        );
+      }
+
+      invite =
+        (invites as InviteRow[] | null)?.find(
+          (candidate) =>
+            !inviteExpired(candidate.expires_at)
+        ) ?? null;
+    }
+
+    /*
+     * -----------------------------------------------------
+     * Validate resolved invite
+     * -----------------------------------------------------
+     */
     if (
       !invite ||
       !invite.is_active ||
-      inviteExpired(
-        invite.expires_at
-      )
+      inviteExpired(invite.expires_at)
     ) {
       return NextResponse.json(
         {
-          error:
-            "This invite is invalid or has expired.",
+          error: "This invite is invalid or has expired.",
         },
         { status: 404 }
       );
     }
 
+    /*
+     * Load safe club information.
+     */
     const {
       data: club,
       error: clubError,
@@ -130,10 +227,7 @@ export async function GET(
         logo_url
         `
       )
-      .eq(
-        "id",
-        invite.club_id
-      )
+      .eq("id", invite.club_id)
       .maybeSingle();
 
     if (clubError) {
@@ -144,8 +238,7 @@ export async function GET(
 
       return NextResponse.json(
         {
-          error:
-            "Unable to load the invited club.",
+          error: "Unable to load the invited club.",
         },
         { status: 500 }
       );
@@ -164,6 +257,13 @@ export async function GET(
     return NextResponse.json({
       success: true,
       club,
+
+      /*
+       * The auth flow still claims by UUID token.
+       * Friendly /join/<slug> URLs therefore remain
+       * compatible with the existing secure POST flow.
+       */
+      claimToken: invite.token,
     });
   } catch (error) {
     console.error(
@@ -189,32 +289,20 @@ export async function GET(
  *
  * Claim invite for the currently authenticated user.
  *
- * Critical rule:
+ * IMPORTANT:
+ * POST continues to accept ONLY the actual invite token.
  *
  * ONE ACCOUNT = ONE CLUB
- *
- * - No club yet -> assign invited club.
- * - Already same club -> allowed.
- * - Already another club -> BLOCK.
- *
- * Authentication is verified server-side from the user's
- * Supabase access token.
  * =========================================================
  */
 
-export async function POST(
-  request: Request
-) {
+export async function POST(request: Request) {
   try {
     const authHeader =
-      request.headers.get(
-        "authorization"
-      );
+      request.headers.get("authorization");
 
     const accessToken =
-      authHeader?.startsWith(
-        "Bearer "
-      )
+      authHeader?.startsWith("Bearer ")
         ? authHeader.slice(7)
         : null;
 
@@ -231,15 +319,11 @@ export async function POST(
     const {
       data: userData,
       error: userError,
-    } =
-      await supabaseAdmin.auth.getUser(
-        accessToken
-      );
+    } = await supabaseAdmin.auth.getUser(
+      accessToken
+    );
 
-    if (
-      userError ||
-      !userData.user
-    ) {
+    if (userError || !userData.user) {
       return NextResponse.json(
         {
           error:
@@ -249,28 +333,21 @@ export async function POST(
       );
     }
 
-    const body =
-      await request.json();
+    const body = await request.json();
 
     const token =
-      typeof body?.token ===
-      "string"
+      typeof body?.token === "string"
         ? body.token.trim()
         : "";
 
     if (!token) {
       return NextResponse.json(
         {
-          error:
-            "Invite token is required.",
+          error: "Invite token is required.",
         },
         { status: 400 }
       );
     }
-
-    /*
-     * Validate invite using service role.
-     */
 
     const {
       data: invite,
@@ -297,8 +374,7 @@ export async function POST(
 
       return NextResponse.json(
         {
-          error:
-            "Unable to validate this invite.",
+          error: "Unable to validate this invite.",
         },
         { status: 500 }
       );
@@ -307,22 +383,15 @@ export async function POST(
     if (
       !invite ||
       !invite.is_active ||
-      inviteExpired(
-        invite.expires_at
-      )
+      inviteExpired(invite.expires_at)
     ) {
       return NextResponse.json(
         {
-          error:
-            "This invite is invalid or has expired.",
+          error: "This invite is invalid or has expired.",
         },
         { status: 404 }
       );
     }
-
-    /*
-     * Find the user's profile.
-     */
 
     const {
       data: profile,
@@ -335,10 +404,7 @@ export async function POST(
         club_id
         `
       )
-      .eq(
-        "id",
-        userData.user.id
-      )
+      .eq("id", userData.user.id)
       .maybeSingle();
 
     if (profileError) {
@@ -349,8 +415,7 @@ export async function POST(
 
       return NextResponse.json(
         {
-          error:
-            "Unable to load your profile.",
+          error: "Unable to load your profile.",
         },
         { status: 500 }
       );
@@ -367,15 +432,11 @@ export async function POST(
     }
 
     /*
-     * =====================================================
      * ONE USER = ONE CLUB
-     * =====================================================
      */
-
     if (
       profile.club_id &&
-      profile.club_id !==
-        invite.club_id
+      profile.club_id !== invite.club_id
     ) {
       return NextResponse.json(
         {
@@ -387,45 +448,28 @@ export async function POST(
     }
 
     /*
-     * Already in this club.
-     * Nothing else to update.
+     * Already belongs to this club.
      */
-
-    if (
-      profile.club_id ===
-      invite.club_id
-    ) {
+    if (profile.club_id === invite.club_id) {
       return NextResponse.json({
         success: true,
         alreadyJoined: true,
-        clubId:
-          invite.club_id,
+        clubId: invite.club_id,
       });
     }
 
     /*
      * First club assignment.
      */
-
-    const {
-      error: updateError,
-    } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        club_id:
-          invite.club_id,
-
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq(
-        "id",
-        userData.user.id
-      )
-      .is(
-        "club_id",
-        null
-      );
+    const { error: updateError } =
+      await supabaseAdmin
+        .from("profiles")
+        .update({
+          club_id: invite.club_id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", userData.user.id)
+        .is("club_id", null);
 
     if (updateError) {
       console.error(
@@ -435,31 +479,23 @@ export async function POST(
 
       return NextResponse.json(
         {
-          error:
-            "Unable to join this club.",
+          error: "Unable to join this club.",
         },
         { status: 500 }
       );
     }
 
     /*
-     * Read back the profile.
-     *
-     * This protects us against two simultaneous
-     * attempts trying to assign different clubs.
+     * Read back profile to protect against simultaneous
+     * attempts to assign different clubs.
      */
-
     const {
       data: updatedProfile,
-      error:
-        updatedProfileError,
+      error: updatedProfileError,
     } = await supabaseAdmin
       .from("profiles")
       .select("club_id")
-      .eq(
-        "id",
-        userData.user.id
-      )
+      .eq("id", userData.user.id)
       .maybeSingle();
 
     if (
@@ -476,8 +512,7 @@ export async function POST(
     }
 
     if (
-      updatedProfile.club_id !==
-      invite.club_id
+      updatedProfile.club_id !== invite.club_id
     ) {
       return NextResponse.json(
         {
@@ -491,8 +526,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       alreadyJoined: false,
-      clubId:
-        invite.club_id,
+      clubId: invite.club_id,
     });
   } catch (error) {
     console.error(
