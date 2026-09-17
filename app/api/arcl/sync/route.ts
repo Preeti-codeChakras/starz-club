@@ -269,7 +269,7 @@ function parseMatches(
   let leagueTablesSeen = 0;
   let leagueRowsSeen = 0;
   let originalMetadataRowsSeen = 0;
-  let originalMetadataRowsSuppressed = 0;
+  let originalMetadataRowsRestored = 0;
 
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const tableHtml = tableMatch[1];
@@ -327,10 +327,7 @@ function parseMatches(
         continue;
       }
 
-      /*
-       * Club qualification is ONLY Team1/Team2.
-       * Umpire/Umpire2 never makes this a scorecard match.
-       */
+      // Scorecard relevance is ONLY Team1/Team2.
       const belongsToClub =
         configuredTeamNames.has(normalize(team1Name)) ||
         configuredTeamNames.has(normalize(team2Name));
@@ -339,10 +336,10 @@ function parseMatches(
         continue;
       }
 
-      const matchDate =
+      const displayedDate =
         parseArclDate(valueAt(row.cells, indexes.date));
 
-      if (!matchDate) {
+      if (!displayedDate) {
         continue;
       }
 
@@ -350,13 +347,13 @@ function parseMatches(
         valueAt(row.cells, indexes.umpire2);
 
       /*
-       * ARCL sometimes places schedule metadata such as
-       * "Original: 09/12/2026" in the Umpire2 column.
+       * ARCL can temporarily move a completed match to another
+       * date/time so a late scorecard can be entered. In that case
+       * it places metadata such as "Original: 09/12/2026" in the
+       * Umpire2 column.
        *
-       * This is NOT an umpire name. We retain the date temporarily
-       * so that a second pass can determine whether this row is an
-       * alternate/reschedule representation of an original League
-       * Schedule row already present for the same two teams.
+       * That value is NOT an umpire. The match belongs to the
+       * original fixture date.
        */
       const originalDate =
         parseOriginalDateMetadata(rawUmpire2);
@@ -368,8 +365,12 @@ function parseMatches(
       const candidate: ParsedMatch = {
         arclMatchId: extractArclMatchId(row.html),
 
-        matchDate,
+        // Restore ARCL's explicitly supplied original fixture date.
+        matchDate: originalDate ?? displayedDate,
 
+        // Keep the displayed time for now. A second pass below
+        // restores the original time when the original fixture is
+        // also present in League Schedule.
         startTime: parseArclTime(
           valueAt(row.cells, indexes.startTime)
         ),
@@ -385,12 +386,11 @@ function parseMatches(
         team1Name,
         team2Name,
 
-        // Retained for future automatic umpiring reminders.
         umpireName: nullIfEmpty(
           valueAt(row.cells, indexes.umpire)
         ),
 
-        // "Original: <date>" is ARCL metadata, never an umpire.
+        // Never store "Original: <date>" as an umpire.
         umpire2Name: originalDate
           ? null
           : nullIfEmpty(rawUmpire2),
@@ -424,11 +424,9 @@ function parseMatches(
   }
 
   /*
-   * Build a lookup of ordinary League Schedule rows by:
-   * original date + unordered team pair.
-   *
-   * Team order is intentionally ignored here because ARCL could
-   * reverse Team1/Team2 when representing the same fixture.
+   * Find an ordinary League Schedule row for the same original
+   * date + same unordered team pair. If present, it is the safest
+   * source for the original start/end time and ground.
    */
   function fixtureKey(
     matchDate: string,
@@ -447,16 +445,18 @@ function parseMatches(
     ].join("|");
   }
 
-  const ordinaryFixtureKeys = new Set<string>();
+  const ordinaryFixtures =
+    new Map<string, ParsedMatch>();
 
   for (const row of parsedLeagueRows) {
     if (!row.originalDate) {
-      ordinaryFixtureKeys.add(
+      ordinaryFixtures.set(
         fixtureKey(
           row.match.matchDate,
           row.match.team1Name,
           row.match.team2Name
-        )
+        ),
+        row.match
       );
     }
   }
@@ -464,31 +464,35 @@ function parseMatches(
   const byIdentity = new Map<string, ParsedMatch>();
 
   for (const row of parsedLeagueRows) {
-    const candidate = row.match;
+    let candidate = row.match;
 
-    /*
-     * If ARCL explicitly says "Original: <date>" AND the League
-     * Schedule also contains the same fixture on that original
-     * date, the metadata row is an alternate/reschedule artifact.
-     *
-     * Suppress only in that evidence-backed case.
-     *
-     * If the original fixture is NOT present, keep this row rather
-     * than guessing. This protects legitimate reschedules for other
-     * clubs/seasons.
-     */
-    if (
-      row.originalDate &&
-      ordinaryFixtureKeys.has(
-        fixtureKey(
-          row.originalDate,
-          candidate.team1Name,
-          candidate.team2Name
-        )
-      )
-    ) {
-      originalMetadataRowsSuppressed += 1;
-      continue;
+    if (row.originalDate) {
+      const originalFixture =
+        ordinaryFixtures.get(
+          fixtureKey(
+            row.originalDate,
+            candidate.team1Name,
+            candidate.team2Name
+          )
+        );
+
+      if (originalFixture) {
+        /*
+         * Preserve this row's real ARCL match_id, but restore the
+         * actual fixture schedule from the original League Schedule
+         * row. This avoids inventing AM/PM rules.
+         */
+        candidate = {
+          ...candidate,
+          matchDate: originalFixture.matchDate,
+          startTime: originalFixture.startTime,
+          endTime: originalFixture.endTime,
+          ground:
+            originalFixture.ground ?? candidate.ground,
+        };
+
+        originalMetadataRowsRestored += 1;
+      }
     }
 
     const identity = candidate.arclMatchId
@@ -532,7 +536,7 @@ function parseMatches(
     leagueTablesSeen,
     leagueRowsSeen,
     originalMetadataRowsSeen,
-    originalMetadataRowsSuppressed,
+    originalMetadataRowsRestored,
   };
 }
 
@@ -605,7 +609,7 @@ async function syncClub(club: ClubRow) {
     leagueTablesSeen,
     leagueRowsSeen,
     originalMetadataRowsSeen,
-    originalMetadataRowsSuppressed,
+    originalMetadataRowsRestored,
   } = parseMatches(
     html,
     clubTeams
@@ -895,7 +899,7 @@ async function syncClub(club: ClubRow) {
     leagueTablesSeen,
     leagueRowsSeen,
     originalMetadataRowsSeen,
-    originalMetadataRowsSuppressed,
+    originalMetadataRowsRestored,
     matchesFound: matches.length,
     matchesSynced: syncedRows.length,
     staleMatchesRemoved: staleRowIds.length,
