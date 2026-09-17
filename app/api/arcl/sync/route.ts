@@ -80,6 +80,16 @@ function parseArclDate(value: string) {
   return `${year}-${month}-${day}`;
 }
 
+function parseOriginalDateMetadata(value: string) {
+  const match = value
+    .trim()
+    .match(/^Original:\s*(\d{1,2}\/\d{1,2}\/\d{4})$/i);
+
+  if (!match) return null;
+
+  return parseArclDate(match[1]);
+}
+
 function parseArclTime(value: string) {
   const match = value
     .trim()
@@ -245,7 +255,12 @@ function parseMatches(
       .map(normalize)
   );
 
-  const byIdentity = new Map<string, ParsedMatch>();
+  type ParsedLeagueRow = {
+    match: ParsedMatch;
+    originalDate: string | null;
+  };
+
+  const parsedLeagueRows: ParsedLeagueRow[] = [];
 
   const tableRegex =
     /<table\b[^>]*>([\s\S]*?)<\/table>/gi;
@@ -253,14 +268,8 @@ function parseMatches(
   let tableMatch: RegExpExecArray | null;
   let leagueTablesSeen = 0;
   let leagueRowsSeen = 0;
-
-  // Temporary diagnostic: inspect the exact ARCL cells received by Vercel
-  // for the three matches around the Sep 12 / Sep 19 issue.
-  const diagnosticMatchIds = new Set([29450, 29451, 29452]);
-  const diagnosticRows: {
-    arclMatchId: number;
-    cells: string[];
-  }[] = [];
+  let originalMetadataRowsSeen = 0;
+  let originalMetadataRowsSuppressed = 0;
 
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const tableHtml = tableMatch[1];
@@ -308,18 +317,6 @@ function parseMatches(
     for (const row of rawRows.slice(1)) {
       leagueRowsSeen += 1;
 
-      const diagnosticMatchId = extractArclMatchId(row.html);
-
-      if (
-        diagnosticMatchId &&
-        diagnosticMatchIds.has(diagnosticMatchId)
-      ) {
-        diagnosticRows.push({
-          arclMatchId: diagnosticMatchId,
-          cells: row.cells,
-        });
-      }
-
       const team1Name =
         valueAt(row.cells, indexes.team1).trim();
 
@@ -349,6 +346,25 @@ function parseMatches(
         continue;
       }
 
+      const rawUmpire2 =
+        valueAt(row.cells, indexes.umpire2);
+
+      /*
+       * ARCL sometimes places schedule metadata such as
+       * "Original: 09/12/2026" in the Umpire2 column.
+       *
+       * This is NOT an umpire name. We retain the date temporarily
+       * so that a second pass can determine whether this row is an
+       * alternate/reschedule representation of an original League
+       * Schedule row already present for the same two teams.
+       */
+      const originalDate =
+        parseOriginalDateMetadata(rawUmpire2);
+
+      if (originalDate) {
+        originalMetadataRowsSeen += 1;
+      }
+
       const candidate: ParsedMatch = {
         arclMatchId: extractArclMatchId(row.html),
 
@@ -374,9 +390,10 @@ function parseMatches(
           valueAt(row.cells, indexes.umpire)
         ),
 
-        umpire2Name: nullIfEmpty(
-          valueAt(row.cells, indexes.umpire2)
-        ),
+        // "Original: <date>" is ARCL metadata, never an umpire.
+        umpire2Name: originalDate
+          ? null
+          : nullIfEmpty(rawUmpire2),
 
         matchType: nullIfEmpty(
           valueAt(row.cells, indexes.matchType)
@@ -399,37 +416,104 @@ function parseMatches(
         ),
       };
 
-      /*
-       * Completed matches normally have an ARCL match_id.
-       * Future League Schedule rows may not.
-       *
-       * Prefer the external ID when present; otherwise use
-       * the stable schedule identity.
-       */
-      const identity = candidate.arclMatchId
-        ? `id:${candidate.arclMatchId}`
-        : `schedule:${scheduleKey(candidate)}`;
+      parsedLeagueRows.push({
+        match: candidate,
+        originalDate,
+      });
+    }
+  }
 
-      const existing = byIdentity.get(identity);
+  /*
+   * Build a lookup of ordinary League Schedule rows by:
+   * original date + unordered team pair.
+   *
+   * Team order is intentionally ignored here because ARCL could
+   * reverse Team1/Team2 when representing the same fixture.
+   */
+  function fixtureKey(
+    matchDate: string,
+    team1Name: string,
+    team2Name: string
+  ) {
+    const teams = [
+      normalize(team1Name),
+      normalize(team2Name),
+    ].sort();
 
-      if (!existing) {
-        byIdentity.set(identity, candidate);
-      } else {
-        byIdentity.set(identity, {
-          ...existing,
-          ...candidate,
-          winnerName:
-            candidate.winnerName ?? existing.winnerName,
-          runnerName:
-            candidate.runnerName ?? existing.runnerName,
-          comment:
-            candidate.comment ?? existing.comment,
-          umpireName:
-            candidate.umpireName ?? existing.umpireName,
-          umpire2Name:
-            candidate.umpire2Name ?? existing.umpire2Name,
-        });
-      }
+    return [
+      matchDate,
+      teams[0],
+      teams[1],
+    ].join("|");
+  }
+
+  const ordinaryFixtureKeys = new Set<string>();
+
+  for (const row of parsedLeagueRows) {
+    if (!row.originalDate) {
+      ordinaryFixtureKeys.add(
+        fixtureKey(
+          row.match.matchDate,
+          row.match.team1Name,
+          row.match.team2Name
+        )
+      );
+    }
+  }
+
+  const byIdentity = new Map<string, ParsedMatch>();
+
+  for (const row of parsedLeagueRows) {
+    const candidate = row.match;
+
+    /*
+     * If ARCL explicitly says "Original: <date>" AND the League
+     * Schedule also contains the same fixture on that original
+     * date, the metadata row is an alternate/reschedule artifact.
+     *
+     * Suppress only in that evidence-backed case.
+     *
+     * If the original fixture is NOT present, keep this row rather
+     * than guessing. This protects legitimate reschedules for other
+     * clubs/seasons.
+     */
+    if (
+      row.originalDate &&
+      ordinaryFixtureKeys.has(
+        fixtureKey(
+          row.originalDate,
+          candidate.team1Name,
+          candidate.team2Name
+        )
+      )
+    ) {
+      originalMetadataRowsSuppressed += 1;
+      continue;
+    }
+
+    const identity = candidate.arclMatchId
+      ? `id:${candidate.arclMatchId}`
+      : `schedule:${scheduleKey(candidate)}`;
+
+    const existing = byIdentity.get(identity);
+
+    if (!existing) {
+      byIdentity.set(identity, candidate);
+    } else {
+      byIdentity.set(identity, {
+        ...existing,
+        ...candidate,
+        winnerName:
+          candidate.winnerName ?? existing.winnerName,
+        runnerName:
+          candidate.runnerName ?? existing.runnerName,
+        comment:
+          candidate.comment ?? existing.comment,
+        umpireName:
+          candidate.umpireName ?? existing.umpireName,
+        umpire2Name:
+          candidate.umpire2Name ?? existing.umpire2Name,
+      });
     }
   }
 
@@ -447,7 +531,8 @@ function parseMatches(
     matches,
     leagueTablesSeen,
     leagueRowsSeen,
-    diagnosticRows,
+    originalMetadataRowsSeen,
+    originalMetadataRowsSuppressed,
   };
 }
 
@@ -519,7 +604,8 @@ async function syncClub(club: ClubRow) {
     matches,
     leagueTablesSeen,
     leagueRowsSeen,
-    diagnosticRows,
+    originalMetadataRowsSeen,
+    originalMetadataRowsSuppressed,
   } = parseMatches(
     html,
     clubTeams
@@ -808,7 +894,8 @@ async function syncClub(club: ClubRow) {
     sourceSection: "League Schedule",
     leagueTablesSeen,
     leagueRowsSeen,
-    diagnosticRows,
+    originalMetadataRowsSeen,
+    originalMetadataRowsSuppressed,
     matchesFound: matches.length,
     matchesSynced: syncedRows.length,
     staleMatchesRemoved: staleRowIds.length,
