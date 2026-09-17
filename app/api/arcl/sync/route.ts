@@ -17,6 +17,7 @@ const supabaseAdmin = createClient(
 type ClubRow = {
   id: string;
   name: string;
+  timezone: string | null;
   arcl_league_id: number | null;
   arcl_season_id: number | null;
   arcl_season_name: string | null;
@@ -29,13 +30,15 @@ type TeamRow = {
 };
 
 type ParsedMatch = {
-  arclMatchId: number;
+  arclMatchId: number | null;
   matchDate: string;
   startTime: string | null;
   endTime: string | null;
   ground: string | null;
   team1Name: string;
   team2Name: string;
+  umpireName: string | null;
+  umpire2Name: string | null;
   matchType: string | null;
   division: string | null;
   winnerName: string | null;
@@ -64,22 +67,11 @@ function nullIfEmpty(value: string | undefined) {
 }
 
 function parseArclDate(value: string) {
-  /*
-   * ARCL currently returns values such as:
-   *
-   * Saturday 09/19/2026
-   *
-   * Store them as PostgreSQL date:
-   *
-   * 2026-09-19
-   */
   const match = value.match(
     /(\d{1,2})\/(\d{1,2})\/(\d{4})/
   );
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   const month = match[1].padStart(2, "0");
   const day = match[2].padStart(2, "0");
@@ -88,25 +80,22 @@ function parseArclDate(value: string) {
   return `${year}-${month}-${day}`;
 }
 
+function parseOriginalDateMetadata(value: string) {
+  const match = value
+    .trim()
+    .match(/^Original:\s*(\d{1,2}\/\d{1,2}\/\d{4})$/i);
+
+  if (!match) return null;
+
+  return parseArclDate(match[1]);
+}
+
 function parseArclTime(value: string) {
-  /*
-   * Convert:
-   * 8:00 AM
-   * 10:30 AM
-   * 12:50 PM
-   *
-   * into PostgreSQL time:
-   * 08:00:00
-   * 10:30:00
-   * 12:50:00
-   */
   const match = value
     .trim()
     .match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   let hour = Number(match[1]);
   const minute = match[2];
@@ -139,18 +128,11 @@ function getCells(rowHtml: string) {
 }
 
 function extractArclMatchId(rowHtml: string) {
-  /*
-   * Actual ARCL game rows contain links such as:
-   *
-   * Matchscorecard.aspx?match_id=294328&league_id=2&season_id=70
-   */
   const match = rowHtml.match(
     /Matchscorecard\.aspx\?[^"'<>]*match_id=(\d+)/i
   );
 
-  if (!match) {
-    return null;
-  }
+  if (!match) return null;
 
   const id = Number(match[1]);
 
@@ -167,6 +149,8 @@ function getHeaderIndexes(headers: string[]) {
     ground: normalizedHeaders.indexOf("ground"),
     team1: normalizedHeaders.indexOf("team1"),
     team2: normalizedHeaders.indexOf("team2"),
+    umpire: normalizedHeaders.indexOf("umpire"),
+    umpire2: normalizedHeaders.indexOf("umpire2"),
     matchType: normalizedHeaders.indexOf("match type"),
     division: normalizedHeaders.indexOf("division"),
     winner: normalizedHeaders.indexOf("winner"),
@@ -175,21 +159,91 @@ function getHeaderIndexes(headers: string[]) {
   };
 }
 
-function valueAt(
-  cells: string[],
-  index: number
+function valueAt(cells: string[], index: number) {
+  if (index < 0) return "";
+  return cells[index] ?? "";
+}
+
+/*
+ * Find the heading immediately before a table.
+ *
+ * ARCL currently has sections such as:
+ *
+ * Umpiring Assignments
+ * Upcoming Games
+ * League Schedule
+ */
+function isLeagueScheduleTable(headers: string[]) {
+  const normalizedHeaders = headers.map(normalize);
+
+  /*
+   * We intentionally sync ONLY ARCL's League Schedule table.
+   *
+   * League Schedule contains:
+   * Date, Team1, Team2, Umpire, Match Type,
+   * Winner, Runner and Comment.
+   *
+   * Upcoming Games and Umpiring Assignments are ignored.
+   */
+  return (
+    normalizedHeaders.includes("date") &&
+    normalizedHeaders.includes("team1") &&
+    normalizedHeaders.includes("team2") &&
+    normalizedHeaders.includes("winner") &&
+    normalizedHeaders.includes("runner") &&
+    normalizedHeaders.includes("comment")
+  );
+}
+
+function getTodayInTimeZone(
+  timeZone: string
 ) {
-  if (index < 0) {
-    return "";
+  const parts = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }
+  ).formatToParts(new Date());
+
+  const year =
+    parts.find((part) => part.type === "year")?.value;
+
+  const month =
+    parts.find((part) => part.type === "month")?.value;
+
+  const day =
+    parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error(
+      `Unable to determine current date for timezone ${timeZone}.`
+    );
   }
 
-  return cells[index] ?? "";
+  return `${year}-${month}-${day}`;
+}
+
+function scheduleKey(match: {
+  matchDate: string;
+  startTime: string | null;
+  team1Name: string;
+  team2Name: string;
+}) {
+  return [
+    match.matchDate,
+    match.startTime ?? "",
+    normalize(match.team1Name),
+    normalize(match.team2Name),
+  ].join("|");
 }
 
 function parseMatches(
   html: string,
   clubTeams: TeamRow[]
-): ParsedMatch[] {
+) {
   const configuredTeamNames = new Set(
     clubTeams
       .map((team) => team.arcl_team_name)
@@ -201,19 +255,21 @@ function parseMatches(
       .map(normalize)
   );
 
-  /*
-   * Keyed by ARCL's real match_id.
-   *
-   * If the same match appears in multiple ARCL tables,
-   * it becomes ONE match here.
-   */
-  const matchesById =
-    new Map<number, ParsedMatch>();
+  type ParsedLeagueRow = {
+    match: ParsedMatch;
+    originalDate: string | null;
+  };
+
+  const parsedLeagueRows: ParsedLeagueRow[] = [];
 
   const tableRegex =
     /<table\b[^>]*>([\s\S]*?)<\/table>/gi;
 
   let tableMatch: RegExpExecArray | null;
+  let leagueTablesSeen = 0;
+  let leagueRowsSeen = 0;
+  let originalMetadataRowsSeen = 0;
+  let originalMetadataRowsRestored = 0;
 
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const tableHtml = tableMatch[1];
@@ -239,12 +295,17 @@ function parseMatches(
       continue;
     }
 
-    const indexes =
-      getHeaderIndexes(rawRows[0].cells);
+    const headers = rawRows[0].cells;
 
-    /*
-     * Ignore non-game tables.
-     */
+    // Permanent rule: ONLY League Schedule is a match source.
+    if (!isLeagueScheduleTable(headers)) {
+      continue;
+    }
+
+    leagueTablesSeen += 1;
+
+    const indexes = getHeaderIndexes(headers);
+
     if (
       indexes.date === -1 ||
       indexes.team1 === -1 ||
@@ -254,61 +315,62 @@ function parseMatches(
     }
 
     for (const row of rawRows.slice(1)) {
-      /*
-       * This is the key distinction:
-       *
-       * only rows with an actual ARCL match scorecard ID
-       * are treated as real games.
-       */
-      const arclMatchId =
-        extractArclMatchId(row.html);
+      leagueRowsSeen += 1;
 
-      if (!arclMatchId) {
-        continue;
-      }
+      const team1Name =
+        valueAt(row.cells, indexes.team1).trim();
 
-      const team1Name = valueAt(
-        row.cells,
-        indexes.team1
-      ).trim();
-
-      const team2Name = valueAt(
-        row.cells,
-        indexes.team2
-      ).trim();
+      const team2Name =
+        valueAt(row.cells, indexes.team2).trim();
 
       if (!team1Name || !team2Name) {
         continue;
       }
 
+      // Scorecard relevance is ONLY Team1/Team2.
       const belongsToClub =
-        configuredTeamNames.has(
-          normalize(team1Name)
-        ) ||
-        configuredTeamNames.has(
-          normalize(team2Name)
-        );
+        configuredTeamNames.has(normalize(team1Name)) ||
+        configuredTeamNames.has(normalize(team2Name));
 
       if (!belongsToClub) {
         continue;
       }
 
-      const matchDate = parseArclDate(
-        valueAt(row.cells, indexes.date)
-      );
+      const displayedDate =
+        parseArclDate(valueAt(row.cells, indexes.date));
 
-      if (!matchDate) {
-        console.warn(
-          `Skipping ARCL match ${arclMatchId}: invalid date`
-        );
-
+      if (!displayedDate) {
         continue;
       }
 
-      const candidate: ParsedMatch = {
-        arclMatchId,
-        matchDate,
+      const rawUmpire2 =
+        valueAt(row.cells, indexes.umpire2);
 
+      /*
+       * ARCL can temporarily move a completed match to another
+       * date/time so a late scorecard can be entered. In that case
+       * it places metadata such as "Original: 09/12/2026" in the
+       * Umpire2 column.
+       *
+       * That value is NOT an umpire. The match belongs to the
+       * original fixture date.
+       */
+      const originalDate =
+        parseOriginalDateMetadata(rawUmpire2);
+
+      if (originalDate) {
+        originalMetadataRowsSeen += 1;
+      }
+
+      const candidate: ParsedMatch = {
+        arclMatchId: extractArclMatchId(row.html),
+
+        // Restore ARCL's explicitly supplied original fixture date.
+        matchDate: originalDate ?? displayedDate,
+
+        // Keep the displayed time for now. A second pass below
+        // restores the original time when the original fixture is
+        // also present in League Schedule.
         startTime: parseArclTime(
           valueAt(row.cells, indexes.startTime)
         ),
@@ -323,6 +385,15 @@ function parseMatches(
 
         team1Name,
         team2Name,
+
+        umpireName: nullIfEmpty(
+          valueAt(row.cells, indexes.umpire)
+        ),
+
+        // Never store "Original: <date>" as an umpire.
+        umpire2Name: originalDate
+          ? null
+          : nullIfEmpty(rawUmpire2),
 
         matchType: nullIfEmpty(
           valueAt(row.cells, indexes.matchType)
@@ -345,76 +416,112 @@ function parseMatches(
         ),
       };
 
-      const existing =
-        matchesById.get(arclMatchId);
-
-      if (!existing) {
-        matchesById.set(
-          arclMatchId,
-          candidate
-        );
-
-        continue;
-      }
-
-      /*
-       * ARCL can show the same game in more than one
-       * table. Preserve whichever copy contains the
-       * richer result information.
-       */
-      matchesById.set(arclMatchId, {
-        ...existing,
-
-        matchDate:
-          candidate.matchDate ||
-          existing.matchDate,
-
-        startTime:
-          candidate.startTime ??
-          existing.startTime,
-
-        endTime:
-          candidate.endTime ??
-          existing.endTime,
-
-        ground:
-          candidate.ground ??
-          existing.ground,
-
-        team1Name:
-          candidate.team1Name ||
-          existing.team1Name,
-
-        team2Name:
-          candidate.team2Name ||
-          existing.team2Name,
-
-        matchType:
-          candidate.matchType ??
-          existing.matchType,
-
-        division:
-          candidate.division ??
-          existing.division,
-
-        winnerName:
-          candidate.winnerName ??
-          existing.winnerName,
-
-        runnerName:
-          candidate.runnerName ??
-          existing.runnerName,
-
-        comment:
-          candidate.comment ??
-          existing.comment,
+      parsedLeagueRows.push({
+        match: candidate,
+        originalDate,
       });
     }
   }
 
-  return Array.from(
-    matchesById.values()
-  ).sort((a, b) => {
+  /*
+   * Find an ordinary League Schedule row for the same original
+   * date + same unordered team pair. If present, it is the safest
+   * source for the original start/end time and ground.
+   */
+  function fixtureKey(
+    matchDate: string,
+    team1Name: string,
+    team2Name: string
+  ) {
+    const teams = [
+      normalize(team1Name),
+      normalize(team2Name),
+    ].sort();
+
+    return [
+      matchDate,
+      teams[0],
+      teams[1],
+    ].join("|");
+  }
+
+  const ordinaryFixtures =
+    new Map<string, ParsedMatch>();
+
+  for (const row of parsedLeagueRows) {
+    if (!row.originalDate) {
+      ordinaryFixtures.set(
+        fixtureKey(
+          row.match.matchDate,
+          row.match.team1Name,
+          row.match.team2Name
+        ),
+        row.match
+      );
+    }
+  }
+
+  const byIdentity = new Map<string, ParsedMatch>();
+
+  for (const row of parsedLeagueRows) {
+    let candidate = row.match;
+
+    if (row.originalDate) {
+      const originalFixture =
+        ordinaryFixtures.get(
+          fixtureKey(
+            row.originalDate,
+            candidate.team1Name,
+            candidate.team2Name
+          )
+        );
+
+      if (originalFixture) {
+        /*
+         * Preserve this row's real ARCL match_id, but restore the
+         * actual fixture schedule from the original League Schedule
+         * row. This avoids inventing AM/PM rules.
+         */
+        candidate = {
+          ...candidate,
+          matchDate: originalFixture.matchDate,
+          startTime: originalFixture.startTime,
+          endTime: originalFixture.endTime,
+          ground:
+            originalFixture.ground ?? candidate.ground,
+        };
+
+        originalMetadataRowsRestored += 1;
+      }
+    }
+
+    const identity = candidate.arclMatchId
+      ? `id:${candidate.arclMatchId}`
+      : `schedule:${scheduleKey(candidate)}`;
+
+    const existing = byIdentity.get(identity);
+
+    if (!existing) {
+      byIdentity.set(identity, candidate);
+    } else {
+      byIdentity.set(identity, {
+        ...existing,
+        ...candidate,
+        winnerName:
+          candidate.winnerName ?? existing.winnerName,
+        runnerName:
+          candidate.runnerName ?? existing.runnerName,
+        comment:
+          candidate.comment ?? existing.comment,
+        umpireName:
+          candidate.umpireName ?? existing.umpireName,
+        umpire2Name:
+          candidate.umpire2Name ?? existing.umpire2Name,
+      });
+    }
+  }
+
+  const matches = [...byIdentity.values()].sort((a, b) => {
     const aValue =
       `${a.matchDate} ${a.startTime ?? ""}`;
 
@@ -423,6 +530,14 @@ function parseMatches(
 
     return aValue.localeCompare(bValue);
   });
+
+  return {
+    matches,
+    leagueTablesSeen,
+    leagueRowsSeen,
+    originalMetadataRowsSeen,
+    originalMetadataRowsRestored,
+  };
 }
 
 async function syncClub(club: ClubRow) {
@@ -437,22 +552,18 @@ async function syncClub(club: ClubRow) {
 
   /*
    * SERVICE ROLE:
-   *
-   * Explicit club_id filter is mandatory because
-   * service-role queries bypass RLS.
+   * Explicit club filter required.
    */
   const {
     data: teams,
     error: teamsError,
   } = await supabaseAdmin
     .from("teams")
-    .select(
-      `
+    .select(`
       id,
       name,
       arcl_team_name
-      `
-    )
+    `)
     .eq("club_id", club.id)
     .not("arcl_team_name", "is", null);
 
@@ -462,8 +573,7 @@ async function syncClub(club: ClubRow) {
     );
   }
 
-  const clubTeams =
-    (teams ?? []) as TeamRow[];
+  const clubTeams = (teams ?? []) as TeamRow[];
 
   if (clubTeams.length === 0) {
     throw new Error(
@@ -494,13 +604,28 @@ async function syncClub(club: ClubRow) {
 
   const html = await response.text();
 
-  const matches =
-    parseMatches(html, clubTeams);
+  const {
+    matches,
+    leagueTablesSeen,
+    leagueRowsSeen,
+    originalMetadataRowsSeen,
+    originalMetadataRowsRestored,
+  } = parseMatches(
+    html,
+    clubTeams
+  );
 
   /*
-   * Map official ARCL names back to our internal
-   * teams table IDs.
+   * Safety guard:
+   * Never reconcile/delete data unless we positively found
+   * ARCL's League Schedule table.
    */
+  if (leagueTablesSeen === 0) {
+    throw new Error(
+      "ARCL League Schedule table could not be identified. No database changes were made."
+    );
+  }
+
   const teamIdByArclName =
     new Map<string, string>();
 
@@ -513,107 +638,18 @@ async function syncClub(club: ClubRow) {
     }
   }
 
-  if (matches.length === 0) {
-    return {
-      clubId: club.id,
-      clubName: club.name,
-      leagueId: club.arcl_league_id,
-      seasonId: club.arcl_season_id,
-      seasonName: club.arcl_season_name,
-      configuredTeams: clubTeams.map(
-        (team) => team.arcl_team_name
-      ),
-      matchesFound: 0,
-      matchesSynced: 0,
-    };
-  }
-
-  const now =
-    new Date().toISOString();
-
-  const rows = matches.map((match) => ({
-    club_id: club.id,
-
-    arcl_league_id:
-      club.arcl_league_id,
-
-    arcl_season_id:
-      club.arcl_season_id,
-
-    arcl_match_id:
-      match.arclMatchId,
-
-    match_date:
-      match.matchDate,
-
-    start_time:
-      match.startTime,
-
-    end_time:
-      match.endTime,
-
-    ground:
-      match.ground,
-
-    team1_name:
-      match.team1Name,
-
-    team2_name:
-      match.team2Name,
-
-    match_type:
-      match.matchType,
-
-    division:
-      match.division,
-
-    club_team1_id:
-      teamIdByArclName.get(
-        normalize(match.team1Name)
-      ) ?? null,
-
-    club_team2_id:
-      teamIdByArclName.get(
-        normalize(match.team2Name)
-      ) ?? null,
-
-    winner_name:
-      match.winnerName,
-
-    runner_name:
-      match.runnerName,
-
-    comment:
-      match.comment,
-
-    source: "ARCL",
-
-    updated_at: now,
-  }));
-
   /*
-   * Upsert using the unique ARCL identity we created:
-   *
-   * arcl_league_id
-   * arcl_season_id
-   * arcl_match_id
-   *
-   * IMPORTANT:
-   * Every row explicitly contains club_id.
+   * Load the club's current ARCL rows once.
+   * Service role bypasses RLS, so all reads/writes stay
+   * explicitly scoped to this club + league + season.
    */
   const {
-    data: syncedRows,
-    error: syncError,
+    data: existingRows,
+    error: existingError,
   } = await supabaseAdmin
     .from("arcl_matches")
-    .upsert(rows, {
-      onConflict:
-        "arcl_league_id,arcl_season_id,arcl_match_id",
-    })
-    .select(
-      `
+    .select(`
       id,
-      club_id,
       arcl_match_id,
       match_date,
       start_time,
@@ -621,68 +657,279 @@ async function syncClub(club: ClubRow) {
       ground,
       team1_name,
       team2_name,
+      umpire_name,
+      umpire2_name,
+      match_type,
+      division,
       club_team1_id,
       club_team2_id,
       winner_name,
-      runner_name
-      `
-    );
+      runner_name,
+      comment,
+      source
+    `)
+    .eq("club_id", club.id)
+    .eq("arcl_league_id", club.arcl_league_id)
+    .eq("arcl_season_id", club.arcl_season_id)
+    .eq("source", "ARCL");
 
-  if (syncError) {
+  if (existingError) {
     throw new Error(
-      `Unable to sync ARCL matches for ${club.name}: ${syncError.message}`
+      `Unable to inspect existing ARCL matches for ${club.name}: ${existingError.message}`
     );
+  }
+
+  const existingById = new Map<number, any>();
+  const existingBySchedule = new Map<string, any>();
+
+  for (const row of existingRows ?? []) {
+    if (typeof row.arcl_match_id === "number") {
+      existingById.set(row.arcl_match_id, row);
+    }
+
+    existingBySchedule.set(
+      scheduleKey({
+        matchDate: row.match_date,
+        startTime: row.start_time,
+        team1Name: row.team1_name,
+        team2Name: row.team2_name,
+      }),
+      row
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  const keptRowIds = new Set<string>();
+  const syncedRows: any[] = [];
+
+  for (const match of matches) {
+    const key = scheduleKey(match);
+
+    /*
+     * Match priority:
+     * 1. Existing real ARCL match_id
+     * 2. Existing schedule identity
+     *
+     * #2 promotes an older no-ID future row when ARCL later
+     * exposes its real match_id.
+     */
+    const existing =
+      (match.arclMatchId
+        ? existingById.get(match.arclMatchId)
+        : undefined) ??
+      existingBySchedule.get(key);
+
+    const row = {
+      club_id: club.id,
+      arcl_league_id: club.arcl_league_id,
+      arcl_season_id: club.arcl_season_id,
+      arcl_match_id: match.arclMatchId,
+      match_date: match.matchDate,
+      start_time: match.startTime,
+      end_time: match.endTime,
+      ground: match.ground,
+      team1_name: match.team1Name,
+      team2_name: match.team2Name,
+      umpire_name: match.umpireName,
+      umpire2_name: match.umpire2Name,
+      match_type: match.matchType,
+      division: match.division,
+      club_team1_id:
+        teamIdByArclName.get(
+          normalize(match.team1Name)
+        ) ?? null,
+      club_team2_id:
+        teamIdByArclName.get(
+          normalize(match.team2Name)
+        ) ?? null,
+      winner_name: match.winnerName,
+      runner_name: match.runnerName,
+      comment: match.comment,
+      source: "ARCL",
+      updated_at: now,
+    };
+
+    if (existing) {
+      const {
+        data: updated,
+        error: updateError,
+      } = await supabaseAdmin
+        .from("arcl_matches")
+        .update(row)
+        .eq("club_id", club.id)
+        .eq("id", existing.id)
+        .select(`
+          id,
+          club_id,
+          arcl_match_id,
+          match_date,
+          start_time,
+          end_time,
+          ground,
+          team1_name,
+          team2_name,
+          umpire_name,
+          umpire2_name,
+          club_team1_id,
+          club_team2_id,
+          winner_name,
+          runner_name
+        `)
+        .single();
+
+      if (updateError) {
+        throw new Error(
+          `Unable to update ARCL match for ${club.name}: ${updateError.message}`
+        );
+      }
+
+      keptRowIds.add(updated.id);
+      syncedRows.push(updated);
+
+      if (typeof updated.arcl_match_id === "number") {
+        existingById.set(
+          updated.arcl_match_id,
+          updated
+        );
+      }
+
+      existingBySchedule.set(key, updated);
+    } else {
+      const {
+        data: inserted,
+        error: insertError,
+      } = await supabaseAdmin
+        .from("arcl_matches")
+        .insert(row)
+        .select(`
+          id,
+          club_id,
+          arcl_match_id,
+          match_date,
+          start_time,
+          end_time,
+          ground,
+          team1_name,
+          team2_name,
+          umpire_name,
+          umpire2_name,
+          club_team1_id,
+          club_team2_id,
+          winner_name,
+          runner_name
+        `)
+        .single();
+
+      if (insertError) {
+        throw new Error(
+          `Unable to insert ARCL match for ${club.name}: ${insertError.message}`
+        );
+      }
+
+      keptRowIds.add(inserted.id);
+      syncedRows.push(inserted);
+
+      if (typeof inserted.arcl_match_id === "number") {
+        existingById.set(
+          inserted.arcl_match_id,
+          inserted
+        );
+      }
+
+      existingBySchedule.set(key, inserted);
+    }
+  }
+
+  /*
+   * League Schedule is now our SINGLE SOURCE OF TRUTH.
+   *
+   * Any ARCL row for this exact club/league/season that is
+   * not represented by the current League Schedule result
+   * is stale and must be removed.
+   *
+   * This is what removes old bogus rows such as:
+   *   Allstarz vs Bijlee
+   *   SuperStarz vs Toofan
+   * if ARCL no longer lists them in League Schedule.
+   *
+   * IMPORTANT:
+   * This runs only after League Schedule was positively
+   * identified above.
+   */
+  const staleRowIds =
+    (existingRows ?? [])
+      .filter(
+        (row) => !keptRowIds.has(row.id)
+      )
+      .map((row) => row.id);
+
+  if (staleRowIds.length > 0) {
+    const {
+      error: deleteError,
+    } = await supabaseAdmin
+      .from("arcl_matches")
+      .delete()
+      .eq("club_id", club.id)
+      .eq("arcl_league_id", club.arcl_league_id)
+      .eq("arcl_season_id", club.arcl_season_id)
+      .eq("source", "ARCL")
+      .in("id", staleRowIds);
+
+    if (deleteError) {
+      throw new Error(
+        `Unable to remove stale ARCL matches for ${club.name}: ${deleteError.message}`
+      );
+    }
   }
 
   return {
     clubId: club.id,
     clubName: club.name,
-
-    leagueId:
-      club.arcl_league_id,
-
-    seasonId:
-      club.arcl_season_id,
-
-    seasonName:
-      club.arcl_season_name,
+    leagueId: club.arcl_league_id,
+    seasonId: club.arcl_season_id,
+    seasonName: club.arcl_season_name,
 
     configuredTeams:
       clubTeams.map(
         (team) => team.arcl_team_name
       ),
 
-    matchesFound:
-      matches.length,
-
-    matchesSynced:
-      syncedRows?.length ?? 0,
-
-    matches:
-      syncedRows ?? [],
+    sourceSection: "League Schedule",
+    leagueTablesSeen,
+    leagueRowsSeen,
+    originalMetadataRowsSeen,
+    originalMetadataRowsRestored,
+    matchesFound: matches.length,
+    matchesSynced: syncedRows.length,
+    staleMatchesRemoved: staleRowIds.length,
+    matches: syncedRows,
   };
 }
 
 /*
  * =========================================================
  * POST /api/arcl/sync
- *
- * Authenticated Admin sync.
- *
- * No club ID is accepted from the browser.
- * The club is resolved from the authenticated user's
- * profile, preventing an Admin from asking the endpoint
- * to sync another club.
  * =========================================================
+ *
+ * Authenticated Admin only.
+ *
+ * Club is ALWAYS obtained from the signed-in user's
+ * profile. We never accept a club ID from the browser.
  */
-
-export async function POST(request: Request) {
+export async function POST(
+  request: Request
+) {
   try {
     const authHeader =
-      request.headers.get("authorization");
+      request.headers.get(
+        "authorization"
+      );
 
     const accessToken =
-      authHeader?.startsWith("Bearer ")
+      authHeader?.startsWith(
+        "Bearer "
+      )
         ? authHeader.slice(7)
         : null;
 
@@ -692,19 +939,19 @@ export async function POST(request: Request) {
           error:
             "You must be signed in to sync the ARCL schedule.",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
-    /*
-     * Validate the user's Supabase access token.
-     */
     const {
       data: userData,
       error: userError,
-    } = await supabaseAdmin.auth.getUser(
-      accessToken
-    );
+    } =
+      await supabaseAdmin.auth.getUser(
+        accessToken
+      );
 
     if (
       userError ||
@@ -715,29 +962,32 @@ export async function POST(request: Request) {
           error:
             "Your sign-in session is invalid or expired.",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
     /*
      * SERVICE ROLE:
      *
-     * Resolve the caller's club from profiles.
-     * Do NOT trust a club ID supplied by the client.
+     * Resolve caller's club from profile.
+     * Never trust a client-provided club ID.
      */
     const {
       data: profile,
       error: profileError,
     } = await supabaseAdmin
       .from("profiles")
-      .select(
-        `
+      .select(`
         id,
         club_id,
         app_role
-        `
+      `)
+      .eq(
+        "id",
+        userData.user.id
       )
-      .eq("id", userData.user.id)
       .maybeSingle();
 
     if (profileError) {
@@ -751,7 +1001,9 @@ export async function POST(request: Request) {
           error:
             "Unable to load your club profile.",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
@@ -764,38 +1016,46 @@ export async function POST(request: Request) {
           error:
             "Your account is not associated with a club.",
         },
-        { status: 409 }
+        {
+          status: 409,
+        }
       );
     }
 
-    if (profile.app_role !== "Admin") {
+    if (
+      profile.app_role !== "Admin"
+    ) {
       return NextResponse.json(
         {
           error:
             "Only club Admins can sync the ARCL schedule.",
         },
-        { status: 403 }
+        {
+          status: 403,
+        }
       );
     }
 
     /*
-     * Explicitly fetch ONLY the caller's club.
+     * Explicitly fetch ONLY caller's club.
      */
     const {
       data: club,
       error: clubError,
     } = await supabaseAdmin
       .from("clubs")
-      .select(
-        `
+      .select(`
         id,
         name,
+        timezone,
         arcl_league_id,
         arcl_season_id,
         arcl_season_name
-        `
+      `)
+      .eq(
+        "id",
+        profile.club_id
       )
-      .eq("id", profile.club_id)
       .maybeSingle<ClubRow>();
 
     if (clubError) {
@@ -809,7 +1069,9 @@ export async function POST(request: Request) {
           error:
             "Unable to load your club's ARCL configuration.",
         },
-        { status: 500 }
+        {
+          status: 500,
+        }
       );
     }
 
@@ -819,7 +1081,9 @@ export async function POST(request: Request) {
           error:
             "Your club could not be found.",
         },
-        { status: 404 }
+        {
+          status: 404,
+        }
       );
     }
 
@@ -839,12 +1103,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
+
         error:
           error instanceof Error
             ? error.message
             : "Unable to sync ARCL schedule.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }
+
+
