@@ -254,6 +254,14 @@ function parseMatches(
   let leagueTablesSeen = 0;
   let leagueRowsSeen = 0;
 
+  // Temporary diagnostic: inspect the exact ARCL cells received by Vercel
+  // for the three matches around the Sep 12 / Sep 19 issue.
+  const diagnosticMatchIds = new Set([29450, 29451, 29452]);
+  const diagnosticRows: {
+    arclMatchId: number;
+    cells: string[];
+  }[] = [];
+
   while ((tableMatch = tableRegex.exec(html)) !== null) {
     const tableHtml = tableMatch[1];
 
@@ -299,6 +307,18 @@ function parseMatches(
 
     for (const row of rawRows.slice(1)) {
       leagueRowsSeen += 1;
+
+      const diagnosticMatchId = extractArclMatchId(row.html);
+
+      if (
+        diagnosticMatchId &&
+        diagnosticMatchIds.has(diagnosticMatchId)
+      ) {
+        diagnosticRows.push({
+          arclMatchId: diagnosticMatchId,
+          cells: row.cells,
+        });
+      }
 
       const team1Name =
         valueAt(row.cells, indexes.team1).trim();
@@ -427,6 +447,7 @@ function parseMatches(
     matches,
     leagueTablesSeen,
     leagueRowsSeen,
+    diagnosticRows,
   };
 }
 
@@ -498,6 +519,7 @@ async function syncClub(club: ClubRow) {
     matches,
     leagueTablesSeen,
     leagueRowsSeen,
+    diagnosticRows,
   } = parseMatches(
     html,
     clubTeams
@@ -786,6 +808,7 @@ async function syncClub(club: ClubRow) {
     sourceSection: "League Schedule",
     leagueTablesSeen,
     leagueRowsSeen,
+    diagnosticRows,
     matchesFound: matches.length,
     matchesSynced: syncedRows.length,
     staleMatchesRemoved: staleRowIds.length,
@@ -1001,3 +1024,5 @@ export async function POST(
     );
   }
 }
+
+
