@@ -77,6 +77,13 @@ const menuSections: MenuSection[] = [
           "View practices, games, and locations.",
         href: "/schedule",
       },
+      {
+        name: "ARCL Schedule",
+        icon: "🗓️",
+        description:
+          "Sync and view your club's ARCL match schedule.",
+        href: "/admin/arcl",
+      },
     ],
   },
 

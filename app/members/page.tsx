@@ -167,6 +167,7 @@ export default function MembersPage() {
   >("info");
 
   const [members, setMembers] = useState<Member[]>([]);
+  const [clubName, setClubName] = useState("Cricket Club");
   const [search, setSearch] = useState("");
   const [form, setForm] =
     useState<MemberForm>(initialForm);
@@ -193,6 +194,40 @@ export default function MembersPage() {
     useState<string | null>(null);
 
   const [message, setMessage] = useState("");
+
+  async function loadClubName() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return;
+    }
+
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("club_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+    if (profileError || !profile?.club_id) {
+      return;
+    }
+
+    const { data: club, error: clubError } =
+      await supabase
+        .from("clubs")
+        .select("name")
+        .eq("id", profile.club_id)
+        .maybeSingle();
+
+    if (clubError || !club?.name) {
+      return;
+    }
+
+    setClubName(club.name);
+  }
 
   async function loadMembers() {
     setLoading(true);
@@ -239,6 +274,7 @@ export default function MembersPage() {
   }
 
   useEffect(() => {
+    void loadClubName();
     void loadMembers();
   }, []);
 
@@ -613,7 +649,7 @@ export default function MembersPage() {
         </Link>
 
         <h1 className="mt-6 text-3xl font-bold text-blue-900">
-          👥 Starz Club Members
+          👥 {clubName} Members
         </h1>
 
         <p className="mt-3 text-slate-600">
@@ -1077,5 +1113,6 @@ export default function MembersPage() {
     </main>
   );
 }
+
 
 
