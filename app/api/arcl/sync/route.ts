@@ -168,22 +168,38 @@ function getTableSection(
   html: string,
   tableStartIndex: number
 ): string {
+  // Look at the HTML immediately before this table.
+  // ARCL is an older ASP.NET site and its section labels are
+  // not guaranteed to be real h1-h6 heading elements.
   const beforeTable = html.slice(
-    Math.max(0, tableStartIndex - 5000),
+    Math.max(0, tableStartIndex - 8000),
     tableStartIndex
   );
 
-  const headingRegex =
-    /<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/gi;
+  const visibleText = cleanText(beforeTable).toLowerCase();
 
-  let match: RegExpExecArray | null;
-  let lastHeading = "";
+  // Find whichever known ARCL section label occurs LAST.
+  // The last one is the section this table belongs to.
+  const sections = [
+    {
+      name: "umpiring assignments",
+      index: visibleText.lastIndexOf("umpiring assignments"),
+    },
+    {
+      name: "upcoming games",
+      index: visibleText.lastIndexOf("upcoming games"),
+    },
+    {
+      name: "league schedule",
+      index: visibleText.lastIndexOf("league schedule"),
+    },
+  ];
 
-  while ((match = headingRegex.exec(beforeTable)) !== null) {
-    lastHeading = cleanText(match[1]);
-  }
+  sections.sort((a, b) => b.index - a.index);
 
-  return normalize(lastHeading);
+  return sections[0]?.index >= 0
+    ? sections[0].name
+    : "";
 }
 
 function getTodayInTimeZone(
