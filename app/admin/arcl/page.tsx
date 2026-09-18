@@ -82,13 +82,8 @@ function formatTime(
   const displayHour =
     hour % 12 || 12;
 
-type SeasonDiscoveryResponse = {
-  success: boolean;
-
-  configuredSeason?: {
-    id: number | null;
-    name: string | null;
-  };
+  return `${displayHour}:${minute} ${suffix}`;
+}
 
 function formatDate(
   value: string
@@ -507,110 +502,6 @@ export default function ArclAdminPage() {
           "Your session has expired. Please sign in again."
         );
       }
-    }, []);
-
-  const loadPage =
-    useCallback(async () => {
-      setLoading(true);
-      setError("");
-
-      try {
-        const {
-          data: { user },
-          error: userError,
-        } =
-          await supabase.auth.getUser();
-
-        if (
-          userError ||
-          !user
-        ) {
-          setAuthorized(false);
-
-          setError(
-            "Please sign in to access ARCL administration."
-          );
-
-          return;
-        }
-
-        const {
-          data: profile,
-          error: profileError,
-        } = await supabase
-          .from("profiles")
-          .select(
-            "club_id, app_role"
-          )
-          .eq(
-            "id",
-            user.id
-          )
-          .maybeSingle();
-
-        if (profileError) {
-          throw new Error(
-            profileError.message
-          );
-        }
-
-        if (!profile?.club_id) {
-          setAuthorized(false);
-
-          setError(
-            "Your account is not associated with a club."
-          );
-
-          return;
-        }
-
-        if (
-          profile.app_role !==
-          "Admin"
-        ) {
-          setAuthorized(false);
-
-          setError(
-            "Only club Admins can manage the ARCL schedule."
-          );
-
-          return;
-        }
-
-        setAuthorized(true);
-
-        const clubId =
-          profile.club_id;
-
-        const {
-          data: clubData,
-          error: clubError,
-        } = await supabase
-          .from("clubs")
-          .select(
-            "id, name, arcl_league_id, arcl_season_id, arcl_season_name"
-          )
-          .eq(
-            "id",
-            clubId
-          )
-          .maybeSingle();
-
-        if (clubError) {
-          throw new Error(
-            clubError.message
-          );
-        }
-
-        if (!clubData) {
-          throw new Error(
-            "Club configuration could not be found."
-          );
-        }
-
-        setClub(
-          clubData as ClubConfig
-        );
 
       const response =
         await fetch(
@@ -637,7 +528,6 @@ export default function ArclAdminPage() {
             "Unable to sync the ARCL schedule."
         );
       }
-    }, []);
 
       setMessage(
         `Schedule synced successfully. ${
@@ -859,7 +749,7 @@ export default function ArclAdminPage() {
               href="/"
               className="mt-6 inline-block rounded-lg bg-blue-900 px-5 py-3 font-medium text-white"
             >
-              Back to home
+              Back to Home
             </Link>
           </section>
         </div>
@@ -888,10 +778,10 @@ export default function ArclAdminPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
-              href="/schedule"
+              href="/"
               className="text-sm font-medium text-blue-800 hover:underline"
             >
-              ← Back 
+              ← Back to Home
             </Link>
 
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
