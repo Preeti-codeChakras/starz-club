@@ -53,6 +53,10 @@ function cleanText(value: string) {
  *   next season = current season + 1
  *
  * The season ID and name must actually be present in ARCL HTML.
+ * Parse actual ARCL season options.
+ *
+ * We deliberately read the season ID from ARCL.
+ * We do NOT assume that the next season is current + 1.
  */
 function parseSeasonOptions(
   html: string
@@ -262,7 +266,8 @@ export async function GET(
     }
 
     /*
-     * Explicit club-scoped lookup.
+     * Explicitly fetch ONLY the authenticated
+     * Admin's club.
      */
     const {
       data: club,
@@ -377,6 +382,15 @@ export async function GET(
       );
     }
 
+    /*
+     * Extra safety:
+     *
+     * If the club already has a configured season,
+     * that season should appear in the dropdown.
+     *
+     * This helps make sure we really parsed the
+     * correct ARCL selector.
+     */
     const currentSeason =
       club.arcl_season_id
         ? seasons.find(
@@ -406,6 +420,20 @@ export async function GET(
      *
      * This is only a DISPLAY candidate.
      * It does NOT update the database.
+    if (
+      club.arcl_season_id &&
+      !currentSeason
+    ) {
+      throw new Error(
+        `Configured ARCL season ${club.arcl_season_id} could not be verified in the ARCL season dropdown.`
+      );
+    }
+
+    /*
+     * Find seasons whose ACTUAL ARCL IDs are above
+     * the configured season.
+     *
+     * We are NOT switching anything here.
      */
     const newerSeasons =
       club.arcl_season_id
