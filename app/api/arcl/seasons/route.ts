@@ -169,7 +169,6 @@ export async function GET(
       await supabaseAdmin.auth.getUser(
         accessToken
       );
-      
 
     if (
       userError ||
