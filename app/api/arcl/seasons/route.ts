@@ -31,6 +31,9 @@ type ArclSeason = {
   name: string;
 };
 
+/*
+ * Decode enough HTML entities for ARCL dropdown text.
+ */
 function cleanText(value: string) {
   return value
     .replace(/<[^>]*>/g, " ")
@@ -43,6 +46,13 @@ function cleanText(value: string) {
 }
 
 /*
+ * Extract ARCL seasons from <option> elements.
+ *
+ * We intentionally DO NOT assume:
+ *
+ *   next season = current season + 1
+ *
+ * The season ID and name must actually be present in ARCL HTML.
  * Parse actual ARCL season options.
  *
  * We deliberately read the season ID from ARCL.
@@ -65,15 +75,16 @@ function parseSeasonOptions(
     const text = cleanText(match[2]);
 
     /*
-     * ARCL season names currently follow patterns such as:
+     * ARCL season names currently look like:
      *
-     * Spring 2026
      * Summer 2026
      * Fall 2026
+     * Spring 2026
      * Winter 2025
      *
-     * This prevents unrelated dropdowns from being
-     * mistaken for the season selector.
+     * Requiring this format prevents unrelated dropdowns
+     * such as league/team selectors from being mistaken
+     * for seasons.
      */
     if (
       !/^(Spring|Summer|Fall|Winter)\s+\d{4}$/i.test(
@@ -92,8 +103,7 @@ function parseSeasonOptions(
       continue;
     }
 
-    const id =
-      Number(valueMatch[1]);
+    const id = Number(valueMatch[1]);
 
     if (
       !Number.isInteger(id) ||
@@ -109,11 +119,12 @@ function parseSeasonOptions(
   }
 
   /*
-   * Remove duplicate options while preserving
-   * ARCL's original dropdown order.
+   * Remove duplicates while preserving ARCL's order.
    */
-  const unique =
-    new Map<number, ArclSeason>();
+  const unique = new Map<
+    number,
+    ArclSeason
+  >();
 
   for (const season of seasons) {
     if (!unique.has(season.id)) {
@@ -124,9 +135,7 @@ function parseSeasonOptions(
     }
   }
 
-  return Array.from(
-    unique.values()
-  );
+  return Array.from(unique.values());
 }
 
 export async function GET(
@@ -134,8 +143,8 @@ export async function GET(
 ) {
   try {
     /*
-     * Same authentication approach as the existing
-     * ARCL sync API.
+     * Use the same authentication pattern as the
+     * existing /api/arcl/sync route.
      */
     const authHeader =
       request.headers.get(
@@ -187,7 +196,7 @@ export async function GET(
     }
 
     /*
-     * Resolve club from authenticated user.
+     * Resolve club from authenticated profile.
      *
      * Never accept club_id from the browser.
      */
@@ -323,10 +332,11 @@ export async function GET(
     }
 
     /*
-     * Fetch the League Schedule page for the
-     * currently configured season.
+     * Fetch the SAME League Schedule page we already trust.
      *
-     * ARCL includes its season selector on this page.
+     * The currently configured season remains in the URL.
+     * ARCL returns the season selector containing the other
+     * available seasons.
      */
     const url =
       `https://arcl.org/Pages/UI/LeagueSchedule.aspx` +
@@ -337,19 +347,17 @@ export async function GET(
           : ""
       );
 
-    const response =
-      await fetch(
-        url,
-        {
-          method: "GET",
-
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (compatible; CricketClubSeasonDiscovery/1.0)",
-            Accept: "text/html",
-          },
-        }
-      );
+    const response = await fetch(
+      url,
+      {
+        method: "GET",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (compatible; CricketClubSeasonDiscovery/1.0)",
+          Accept: "text/html",
+        },
+      }
+    );
 
     if (!response.ok) {
       throw new Error(
@@ -365,9 +373,8 @@ export async function GET(
 
     /*
      * Safety:
-     *
-     * If we can't positively identify season options,
-     * don't guess.
+     * Don't pretend discovery succeeded if we couldn't
+     * positively identify ARCL season options.
      */
     if (seasons.length === 0) {
       throw new Error(
@@ -393,6 +400,26 @@ export async function GET(
           ) ?? null
         : null;
 
+    /*
+     * IMPORTANT:
+     *
+     * "Available" does NOT mean "activate automatically".
+     *
+     * We only expose detected seasons to the Admin UI.
+     */
+    const otherSeasons =
+      seasons.filter(
+        (season) =>
+          season.id !==
+          club.arcl_season_id
+      );
+
+    /*
+     * For the notification card we want seasons newer than
+     * the configured season ID.
+     *
+     * This is only a DISPLAY candidate.
+     * It does NOT update the database.
     if (
       club.arcl_season_id &&
       !currentSeason
@@ -418,8 +445,11 @@ export async function GET(
         : [];
 
     /*
-     * If ARCL already exposes multiple future seasons,
-     * show the immediate next one rather than skipping.
+     * If several future seasons are already published,
+     * choose the smallest ID above the current one as the
+     * immediate next candidate.
+     *
+     * Again: this is NOT automatic activation.
      */
     const nextSeason =
       newerSeasons.length > 0
@@ -446,15 +476,27 @@ export async function GET(
           club.arcl_season_name,
       },
 
+      /*
+       * What ARCL itself reports for the currently
+       * configured ID.
+       */
       detectedCurrentSeason:
         currentSeason,
 
+      /*
+       * Candidate shown by the future UI.
+       */
       nextSeason,
 
+      /*
+       * Useful for debugging and future season selection.
+       */
       seasons,
+      otherSeasons,
 
       /*
-       * This endpoint is discovery-only.
+       * Explicitly communicate that discovery made
+       * ZERO configuration changes.
        */
       configurationChanged: false,
     });
@@ -467,7 +509,6 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-
         error:
           error instanceof Error
             ? error.message
