@@ -150,6 +150,11 @@ export default function ArclAdminPage() {
     useState<ArclMatch[]>([]);
 
   const [
+    availableSeasons,
+    setAvailableSeasons,
+  ] = useState<ArclSeason[]>([]);
+
+  const [
     nextSeason,
     setNextSeason,
   ] =
@@ -221,6 +226,10 @@ export default function ArclAdminPage() {
           );
         }
 
+        setAvailableSeasons(
+          result.seasons ?? []
+        );
+
         setNextSeason(
           result.nextSeason ?? null
         );
@@ -241,6 +250,7 @@ export default function ArclAdminPage() {
             : "Unable to check for newer ARCL seasons."
         );
 
+        setAvailableSeasons([]);
         setNextSeason(null);
       } finally {
         setCheckingSeasons(false);
@@ -375,42 +385,51 @@ export default function ArclAdminPage() {
             []) as ClubTeam[]
         );
 
-        const {
-          data: matchData,
-          error: matchError,
-        } = await supabase
-          .from("arcl_matches")
-          .select(`
-            id,
-            arcl_match_id,
-            match_date,
-            start_time,
-            end_time,
-            ground,
-            team1_name,
-            team2_name,
-            match_type,
-            division,
-            winner_name,
-            runner_name,
-            comment
-          `)
-          .eq(
-            "club_id",
-            clubId
-          )
-          .order(
-            "match_date",
-            {
-              ascending: true,
-            }
-          )
-          .order(
-            "start_time",
-            {
-              ascending: true,
-            }
-          );
+       const {
+  data: matchData,
+  error: matchError,
+} = await supabase
+  .from("arcl_matches")
+  .select(`
+    id,
+    arcl_match_id,
+    match_date,
+    start_time,
+    end_time,
+    ground,
+    team1_name,
+    team2_name,
+    match_type,
+    division,
+    winner_name,
+    runner_name,
+    comment
+  `)
+  .eq(
+    "club_id",
+    clubId
+  )
+  .eq(
+    "arcl_league_id",
+    clubData.arcl_league_id
+  )
+  .eq(
+    "arcl_season_id",
+    clubData.arcl_season_id
+  )
+  .order(
+    "match_date",
+    {
+      ascending: true,
+    }
+  )
+  .order(
+    "start_time",
+    {
+      ascending: true,
+    }
+  );
+
 
         if (matchError) {
           throw new Error(
@@ -671,8 +690,6 @@ export default function ArclAdminPage() {
         return;
       }
 
-      setNextSeason(null);
-
       setMessage(
         `ARCL season switched to ${season.name}. ${
           syncResult.matchesSynced ??
@@ -732,7 +749,7 @@ export default function ArclAdminPage() {
               href="/"
               className="mt-6 inline-block rounded-lg bg-blue-900 px-5 py-3 font-medium text-white"
             >
-              Back to Home
+              Back to home
             </Link>
           </section>
         </div>
@@ -761,10 +778,10 @@ export default function ArclAdminPage() {
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
-              href="/"
+              href="/schedule"
               className="text-sm font-medium text-blue-800 hover:underline"
             >
-              ← Back to Home
+              ← Back 
             </Link>
 
             <h1 className="mt-2 text-3xl font-bold text-slate-900">
@@ -850,10 +867,70 @@ export default function ArclAdminPage() {
                 ARCL Season
               </div>
 
-              <div className="mt-1 text-lg font-semibold text-slate-900">
-                {club?.arcl_season_name ??
-                  "Not configured"}
-              </div>
+              {availableSeasons.length > 0 &&
+              club?.arcl_season_id ? (
+                <select
+                  value={
+                    club.arcl_season_id
+                  }
+                  onChange={(event) => {
+                    const selectedId =
+                      Number(
+                        event.target.value
+                      );
+
+                    const selectedSeason =
+                      availableSeasons.find(
+                        (season) =>
+                          season.id ===
+                          selectedId
+                      );
+
+                    if (
+                      selectedSeason &&
+                      selectedSeason.id !==
+                        club.arcl_season_id
+                    ) {
+                      void switchSeason(
+                        selectedSeason
+                      );
+                    }
+                  }}
+                  disabled={
+                    switchingSeason ||
+                    syncing ||
+                    checkingSeasons
+                  }
+                  className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base font-semibold text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {availableSeasons.map(
+                    (season) => (
+                      <option
+                        key={season.id}
+                        value={season.id}
+                      >
+                        {season.name}
+                        {season.id ===
+                        club.arcl_season_id
+                          ? " — Current"
+                          : ""}
+                      </option>
+                    )
+                  )}
+                </select>
+              ) : (
+                <div className="mt-1 text-lg font-semibold text-slate-900">
+                  {club?.arcl_season_name ??
+                    "Not configured"}
+                </div>
+              )}
+
+              {switchingSeason && (
+                <div className="mt-2 text-xs font-medium text-blue-700">
+                  Switching season and
+                  syncing schedule...
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl bg-slate-50 p-4">
@@ -877,57 +954,20 @@ export default function ArclAdminPage() {
 
           {!checkingSeasons &&
             nextSeason && (
-              <div className="mt-5 rounded-2xl border border-amber-300 bg-amber-50 p-5">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-sm font-bold uppercase tracking-wide text-amber-800">
-                      🆕 New ARCL
-                      season available
-                    </div>
-
-                    <div className="mt-1 text-xl font-bold text-slate-900">
-                      {
-                        nextSeason.name
-                      }
-                    </div>
-
-                    <div className="mt-1 text-sm text-slate-600">
-                      Season ID{" "}
-                      {
-                        nextSeason.id
-                      }
-                    </div>
-
-                    <p className="mt-2 text-sm text-slate-600">
-                      Your club will
-                      remain on{" "}
-                      <strong>
-                        {club?.arcl_season_name ??
-                          `Season ${club?.arcl_season_id}`}
-                      </strong>{" "}
-                      until an Admin
-                      switches it.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      void switchSeason(
-                        nextSeason
-                      )
-                    }
-                    disabled={
-                      switchingSeason ||
-                      syncing
-                    }
-                    className="shrink-0 rounded-xl bg-amber-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {switchingSeason
-                      ? "Switching..."
-                      : `Switch to ${nextSeason.name}`}
-                  </button>
+              <div className="mt-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+                <div className="text-sm font-semibold text-amber-900">
+                  🆕 New ARCL season available: {" "}
+                  {nextSeason.name}
+                  {" · "}
+                  Season ID {nextSeason.id}
                 </div>
+
+                <p className="mt-1 text-sm text-amber-800">
+                  Use the ARCL Season dropdown
+                  above whenever you are ready
+                  to switch. You can also switch
+                  back to any season ARCL lists.
+                </p>
               </div>
             )}
 
@@ -1183,3 +1223,5 @@ export default function ArclAdminPage() {
     </main>
   );
 }
+
+

@@ -41,6 +41,9 @@ type ClubEvent = {
   umpire_member_id: string | null;
   umpire_status: "Pending" | "Confirmed" | "Declined";
   umpire_notes: string | null;
+  source: string | null;
+  arcl_match_id: number | null;
+  arcl_season_id: number | null;
 };
 
 type EventForm = {
@@ -124,7 +127,10 @@ export default function SchedulePage() {
             umpiring_team_id,
             umpire_member_id,
             umpire_status,
-            umpire_notes
+            umpire_notes,
+            source,
+            arcl_match_id,
+            arcl_season_id
           `
         )
         .order("starts_at", { ascending: true }),
@@ -399,6 +405,13 @@ export default function SchedulePage() {
   }
 
   async function deleteEvent(event: ClubEvent) {
+    if (event.source === "ARCL") {
+      setMessage(
+        "ARCL-imported schedule items are managed by ARCL and cannot be deleted manually."
+      );
+      return;
+    }
+
     const confirmed = window.confirm(
       `Are you sure you want to delete "${event.title}"?`
     );
@@ -467,6 +480,12 @@ export default function SchedulePage() {
     return members.filter((member) => memberIds.has(member.id));
   }
 
+  const editingEvent = editingEventId
+    ? events.find((event) => event.id === editingEventId) ?? null
+    : null;
+
+  const editingArclEvent = editingEvent?.source === "ARCL";
+
   const umpiringRosterTeamId =
     form.event_type === "Umpiring Assignment"
       ? form.team_id
@@ -492,6 +511,14 @@ export default function SchedulePage() {
           {activeSeason ? ` for ${activeSeason.name}` : ""}.
         </p>
 
+   <div className="mt-5">
+  <Link
+    href="/admin/arcl"
+    className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
+  >
+    🏏 View ARCL Schedule →
+  </Link>
+</div>
         {message && (
           <p className="mt-5 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700 shadow-sm">
             {message}
@@ -504,7 +531,7 @@ export default function SchedulePage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-slate-900">
-                  Upcoming schedule
+                  Upcoming Club Events
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-600">
@@ -550,6 +577,12 @@ export default function SchedulePage() {
                         <EventTypeBadge
                           type={event.event_type}
                         />
+
+                        {event.source === "ARCL" && (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                            ARCL synced
+                          </span>
+                        )}
 
                         <span className="text-sm font-medium text-slate-500">
                           {getTeamName(event.team_id)}
@@ -651,23 +684,24 @@ export default function SchedulePage() {
                         onClick={() => startEditing(event)}
                         className="rounded-lg border border-blue-900 px-4 py-2 text-sm font-medium text-blue-900"
                       >
-                        Edit
+                        {event.source === "ARCL" &&
+                        event.event_type === "Umpiring Assignment"
+                          ? "Assign / Edit umpire"
+                          : "Edit"}
                       </button>
 
-                      <button
-                        type="button"
-                        disabled={
-                          deletingEventId === event.id
-                        }
-                        onClick={() =>
-                          void deleteEvent(event)
-                        }
-                        className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {deletingEventId === event.id
-                          ? "Deleting…"
-                          : "Delete"}
-                      </button>
+                      {event.source !== "ARCL" && (
+                        <button
+                          type="button"
+                          disabled={deletingEventId === event.id}
+                          onClick={() => void deleteEvent(event)}
+                          className="rounded-lg border border-red-600 px-4 py-2 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {deletingEventId === event.id
+                            ? "Deleting…"
+                            : "Delete"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </article>
@@ -687,6 +721,12 @@ export default function SchedulePage() {
               Add a practice, game, or club event.
             </p>
 
+            {editingArclEvent && (
+              <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                This schedule item is synced from ARCL. Match details are read-only here; you can assign the umpire and update umpiring status or umpiring notes.
+              </div>
+            )}
+
             <form
               onSubmit={handleSubmit}
               className="mt-5 grid gap-4"
@@ -701,6 +741,7 @@ export default function SchedulePage() {
                   required
                   placeholder="Example: Allstarz vs Royal Flames"
                   value={form.title}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -718,6 +759,7 @@ export default function SchedulePage() {
 
                 <select
                   value={form.event_type}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -765,6 +807,7 @@ export default function SchedulePage() {
                     type="datetime-local"
                     required
                     value={form.starts_at}
+                    disabled={editingArclEvent}
                     onChange={(event) =>
                       setForm({
                         ...form,
@@ -783,6 +826,7 @@ export default function SchedulePage() {
                   <input
                     type="datetime-local"
                     value={form.ends_at}
+                    disabled={editingArclEvent}
                     onChange={(event) =>
                       setForm({
                         ...form,
@@ -803,6 +847,7 @@ export default function SchedulePage() {
 
                 <select
                   value={form.team_id}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -845,6 +890,7 @@ export default function SchedulePage() {
                     type="text"
                     placeholder="For games only"
                     value={form.opponent}
+                    disabled={editingArclEvent}
                     onChange={(event) =>
                       setForm({
                         ...form,
@@ -1086,6 +1132,7 @@ export default function SchedulePage() {
                   required
                   placeholder="Example: Summit Park"
                   value={form.location_name}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -1106,6 +1153,7 @@ export default function SchedulePage() {
                   type="text"
                   placeholder="Street address, city and state"
                   value={form.location_address}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -1126,6 +1174,7 @@ export default function SchedulePage() {
                   type="url"
                   placeholder="https://maps.google.com/..."
                   value={form.maps_url}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -1145,6 +1194,7 @@ export default function SchedulePage() {
                   rows={4}
                   placeholder="Arrival time, jersey color, equipment, parking instructions..."
                   value={form.notes}
+                  disabled={editingArclEvent}
                   onChange={(event) =>
                     setForm({
                       ...form,
@@ -1166,7 +1216,9 @@ export default function SchedulePage() {
                       ? "Updating…"
                       : "Adding…"
                     : editingEventId
-                      ? "Update Event"
+                      ? editingArclEvent
+                        ? "Save Umpiring Assignment"
+                        : "Update Event"
                       : "Add Event"}
                 </button>
 
@@ -1231,5 +1283,7 @@ function convertToDateTimeInput(value: string) {
 
   return localDate.toISOString().slice(0, 16);
 }
+
+
 
 
