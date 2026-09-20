@@ -96,14 +96,6 @@ export default function AuthPageClient() {
   /*
    * =======================================================
    * CLAIM INVITE
-   *
-   * The browser never updates club_id directly.
-   * Our server validates both:
-   * - Supabase user session
-   * - invite token
-   *
-   * Server then enforces:
-   * ONE USER = ONE CLUB.
    * =======================================================
    */
 
@@ -195,144 +187,138 @@ export default function AuthPageClient() {
       return false;
     }
   }
-async function routeSignedInUser(
-  userId: string
-) {
-  /*
-   * If this authentication came
-   * from an invite link, claim
-   * the club BEFORE deciding
-   * where the user should go.
-   */
-
-  const inviteClaimed =
-    await claimInvite();
-
-  if (!inviteClaimed) {
-    return;
-  }
-
-  const {
-    data: profile,
-    error: profileError,
-  } = await supabase
-    .from("profiles")
-    .select(
-      "member_id, club_id"
-    )
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (profileError) {
-    setMessageType(
-      "error"
-    );
-
-    setMessage(
-      `Signed in, but unable to load your profile: ${profileError.message}`
-    );
-
-    return;
-  }
 
   /*
-   * No club yet means this is
-   * an unassigned account.
-   *
-   * They can create their own club.
+   * =======================================================
+   * ROUTE SIGNED-IN USER
+   * =======================================================
    */
-  if (!profile?.club_id) {
-    router.push(
-      "/create-club"
-    );
 
-    router.refresh();
-
-    return;
-  }
-
-  /*
-   * User belongs to a club,
-   * but has not created their
-   * member/player profile yet.
-   */
-  if (!profile.member_id) {
-    router.push(
-      "/complete-profile"
-    );
-
-    router.refresh();
-
-    return;
-  }
-
-  const {
-    data: member,
-    error: memberError,
-  } = await supabase
-    .from("members")
-    .select(
-      "approval_status"
-    )
-    .eq(
-      "id",
-      profile.member_id
-    )
-    .maybeSingle<MemberStatus>();
-
-  if (memberError) {
-    setMessageType(
-      "error"
-    );
-
-    setMessage(
-      `Signed in, but unable to load your member status: ${memberError.message}`
-    );
-
-    return;
-  }
-
-  if (!member) {
-    router.push(
-      "/complete-profile"
-    );
-
-    router.refresh();
-
-    return;
-  }
-
-  if (
-    member.approval_status ===
-    "Pending"
+  async function routeSignedInUser(
+    userId: string
   ) {
-    router.push(
-      "/pending-approval"
-    );
+    const inviteClaimed =
+      await claimInvite();
+
+    if (!inviteClaimed) {
+      return;
+    }
+
+    const {
+      data: profile,
+      error: profileError,
+    } = await supabase
+      .from("profiles")
+      .select(
+        "member_id, club_id"
+      )
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) {
+      setMessageType(
+        "error"
+      );
+
+      setMessage(
+        `Signed in, but unable to load your profile: ${profileError.message}`
+      );
+
+      return;
+    }
+
+    if (!profile?.club_id) {
+      router.push(
+        "/create-club"
+      );
+
+      router.refresh();
+
+      return;
+    }
+
+    if (!profile.member_id) {
+      router.push(
+        "/complete-profile"
+      );
+
+      router.refresh();
+
+      return;
+    }
+
+    const {
+      data: member,
+      error: memberError,
+    } = await supabase
+      .from("members")
+      .select(
+        "approval_status"
+      )
+      .eq(
+        "id",
+        profile.member_id
+      )
+      .maybeSingle<MemberStatus>();
+
+    if (memberError) {
+      setMessageType(
+        "error"
+      );
+
+      setMessage(
+        `Signed in, but unable to load your member status: ${memberError.message}`
+      );
+
+      return;
+    }
+
+    if (!member) {
+      router.push(
+        "/complete-profile"
+      );
+
+      router.refresh();
+
+      return;
+    }
+
+    if (
+      member.approval_status ===
+      "Pending"
+    ) {
+      router.push(
+        "/pending-approval"
+      );
+
+      router.refresh();
+
+      return;
+    }
+
+    if (
+      member.approval_status ===
+      "Rejected"
+    ) {
+      router.push(
+        "/pending-approval"
+      );
+
+      router.refresh();
+
+      return;
+    }
+
+    router.push("/");
 
     router.refresh();
-
-    return;
   }
 
-  if (
-    member.approval_status ===
-    "Rejected"
-  ) {
-    router.push(
-      "/pending-approval"
-    );
-
-    router.refresh();
-
-    return;
-  }
-
-  router.push("/");
-
-  router.refresh();
-}
-
+  /*
+   * =======================================================
+   * SIGN IN / SIGN UP
+   * =======================================================
+   */
 
   async function handleSubmit(
     event:
@@ -380,9 +366,7 @@ async function routeSignedInUser(
     setSubmitting(true);
 
     /*
-     * ====================================
      * SIGN UP
-     * ====================================
      */
 
     if (
@@ -456,9 +440,7 @@ async function routeSignedInUser(
     }
 
     /*
-     * ====================================
      * SIGN IN
-     * ====================================
      */
 
     const {
@@ -511,9 +493,9 @@ async function routeSignedInUser(
   }
 
   /*
-   * ====================================
+   * =======================================================
    * FORGOT PASSWORD
-   * ====================================
+   * =======================================================
    */
 
   async function handleForgotPassword() {
@@ -592,47 +574,82 @@ async function routeSignedInUser(
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-md">
-        
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-7 shadow-sm">
-          {/* HEADER */}
+    <main className="starz-auth">
+
+      {/* ========================================
+          FULL CINEMATIC BACKGROUND
+          ======================================== */}
+
+      <div
+        className="cinematic-background"
+        aria-hidden="true"
+      />
+
+      <div
+        className="background-overlay"
+        aria-hidden="true"
+      />
+
+      {/* ========================================
+          ANIMATED CRICKET BALL
+          ======================================== */}
+
+      <div
+        className="ball-orbit"
+        aria-hidden="true"
+      >
+        <div className="light-trail" />
+
+        <div className="moving-ball">
+          <span />
+        </div>
+      </div>
+
+      {/* ========================================
+          REAL LOGIN / SIGNUP
+          ======================================== */}
+
+      <section className="auth-content">
+
+        <div className="form-card">
 
           <div className="text-center">
-            <div className="text-4xl">
+
+            <div className="club-icon">
               🏏
             </div>
 
-            <h1 className="mt-4 text-3xl font-bold text-blue-900">
+            <h1 className="club-title">
               Starz Club
             </h1>
 
-            <p className="mt-2 text-slate-600">
+            <p className="club-subtitle">
               {inviteToken
-                ? mode ===
-                  "login"
+                ? mode === "login"
                   ? "Sign in to accept your club invitation."
                   : "Create an account to accept your club invitation."
-                : mode ===
-                    "login"
+                : mode === "login"
                   ? "Sign in to your club account."
                   : "Create your club account."}
             </p>
+
           </div>
 
-          {/* INVITE BANNER */}
+          {/* INVITATION */}
 
           {inviteToken && (
-            <div className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-              🏏 You&apos;re
-              continuing from a
-              club invitation.
+            <div className="invite-banner">
+              🏏 You&apos;re continuing
+              from a club invitation.
             </div>
           )}
 
-          {/* LOGIN / SIGNUP TABS */}
+          {/* ========================================
+              LOGIN / SIGNUP TABS
+              ======================================== */}
 
-          <div className="mt-6 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
+          <div className="auth-tabs">
+
             <button
               type="button"
               onClick={() =>
@@ -640,11 +657,11 @@ async function routeSignedInUser(
                   "login"
                 )
               }
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
+              className={
                 mode === "login"
-                  ? "bg-white text-blue-900 shadow-sm"
-                  : "text-slate-600"
-              }`}
+                  ? "auth-tab active"
+                  : "auth-tab"
+              }
             >
               Sign In
             </button>
@@ -656,26 +673,31 @@ async function routeSignedInUser(
                   "signup"
                 )
               }
-              className={`rounded-md px-4 py-2 text-sm font-medium ${
+              className={
                 mode === "signup"
-                  ? "bg-white text-blue-900 shadow-sm"
-                  : "text-slate-600"
-              }`}
+                  ? "auth-tab active"
+                  : "auth-tab"
+              }
             >
               Sign Up
             </button>
+
           </div>
 
-          {/* FORM */}
+          {/* ========================================
+              FORM
+              ======================================== */}
 
           <form
             onSubmit={
               handleSubmit
             }
-            className="mt-6 grid gap-4"
+            className="auth-form"
           >
-            <label>
-              <span className="text-sm font-medium text-slate-700">
+
+            <label className="field">
+
+              <span>
                 Email *
               </span>
 
@@ -688,17 +710,18 @@ async function routeSignedInUser(
                   event
                 ) =>
                   setEmail(
-                    event
-                      .target
+                    event.target
                       .value
                   )
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter your email"
               />
+
             </label>
 
-            <label>
-              <span className="text-sm font-medium text-slate-700">
+            <label className="field">
+
+              <span>
                 Password *
               </span>
 
@@ -707,7 +730,8 @@ async function routeSignedInUser(
                 required
                 minLength={6}
                 autoComplete={
-                  mode === "login"
+                  mode ===
+                  "login"
                     ? "current-password"
                     : "new-password"
                 }
@@ -718,16 +742,16 @@ async function routeSignedInUser(
                   event
                 ) =>
                   setPassword(
-                    event
-                      .target
+                    event.target
                       .value
                   )
                 }
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-slate-900 placeholder:text-slate-400 placeholder:opacity-100 focus:border-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                placeholder="Enter your password"
               />
 
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <p className="text-xs text-slate-500">
+              <div className="password-help">
+
+                <p>
                   Minimum 6
                   characters.
                 </p>
@@ -742,59 +766,63 @@ async function routeSignedInUser(
                     onClick={() =>
                       void handleForgotPassword()
                     }
-                    className="text-xs font-semibold text-blue-700 transition hover:text-blue-900 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Forgot password?
+                    Forgot
+                    password?
                   </button>
                 )}
+
               </div>
+
             </label>
 
-            {/* PRIVACY */}
+            {/* SIGN-UP PRIVACY */}
 
             {mode ===
               "signup" && (
-              <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="privacy-box">
+
                 <input
                   id="privacy"
                   type="checkbox"
                   required
-                  className="mt-1 h-4 w-4 shrink-0"
                 />
 
-                <label
-                  htmlFor="privacy"
-                  className="text-sm leading-6 text-slate-700"
-                >
+                <label htmlFor="privacy">
+
                   I acknowledge
                   that my
-                  information
-                  will be used
-                  for club
+                  information will
+                  be used for club
                   membership and
-                  administration
-                  as described in
-                  the{" "}
+                  administration as
+                  described in the{" "}
+
                   <Link
                     href="/privacy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-blue-700 hover:underline"
                   >
                     Privacy Policy
                   </Link>
+
                   .
+
                 </label>
+
               </div>
             )}
+
+            {/* SUBMIT */}
 
             <button
               type="submit"
               disabled={
                 submitting
               }
-              className="mt-2 rounded-lg bg-blue-900 px-5 py-3 font-medium text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="submit-button"
             >
+
               {submitting
                 ? mode ===
                   "login"
@@ -804,21 +832,1324 @@ async function routeSignedInUser(
                     "login"
                   ? "Sign In"
                   : "Create Account"}
+
             </button>
+
           </form>
 
           {message && (
-            <AlertMessage
-              type={
-                messageType
-              }
-              message={
-                message
-              }
-            />
+            <div className="alert-wrapper">
+
+              <AlertMessage
+                type={
+                  messageType
+                }
+                message={
+                  message
+                }
+              />
+
+            </div>
           )}
-        </section>
-      </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================
+          CSS
+          ======================================== */}
+
+      <style jsx>{`
+
+        .starz-auth {
+          position: relative;
+          width: 100%;
+          min-height: 100vh;
+          overflow: hidden;
+
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+
+          background: #06152d;
+        }
+
+        /* =====================================
+           BACKGROUND IMAGE
+
+           IMPORTANT:
+           This is the NEW image with
+           NO FAKE LOGIN FORM inside it.
+           ===================================== */
+
+        .cinematic-background {
+          position: absolute;
+          inset: 0;
+          z-index: 0;
+
+          background-image:
+            url("/starz-womens-cricket-hero.png");
+
+          /*
+           * CONTAIN is intentional.
+           *
+           * It shows the complete artwork:
+           * woman's head
+           * bat
+           * body
+           * artwork text
+           * footer artwork
+           *
+           * instead of zooming/cropping it.
+           */
+
+          background-size:
+            contain;
+
+          background-position:
+            center center;
+
+          background-repeat:
+            no-repeat;
+
+          background-color:
+            #06152d;
+
+          animation:
+            cinematicDrift
+            14s
+            ease-in-out
+            infinite
+            alternate;
+        }
+
+        /*
+         * Very subtle darkening on the
+         * right so the REAL form remains
+         * easy to read.
+         */
+
+        .background-overlay {
+          position: absolute;
+          inset: 0;
+          z-index: 1;
+
+          pointer-events: none;
+
+          background:
+            linear-gradient(
+              90deg,
+              rgba(
+                3,
+                13,
+                35,
+                0
+              )
+              0%,
+
+              rgba(
+                3,
+                13,
+                35,
+                0
+              )
+              45%,
+
+              rgba(
+                3,
+                13,
+                35,
+                .15
+              )
+              64%,
+
+              rgba(
+                3,
+                13,
+                35,
+                .42
+              )
+              100%
+            );
+        }
+
+        /* =====================================
+           REAL FORM POSITION
+           ===================================== */
+
+        .auth-content {
+          position: relative;
+          z-index: 10;
+
+          width: 48%;
+          min-height: 100vh;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          padding:
+            45px
+            clamp(
+              30px,
+              5vw,
+              90px
+            );
+        }
+
+        /* =====================================
+           GLASS LOGIN CARD
+           ===================================== */
+
+        .form-card {
+          width: 100%;
+          max-width: 500px;
+
+          padding:
+            clamp(
+              27px,
+              3vw,
+              42px
+            );
+
+          border-radius:
+            28px;
+
+          border:
+            1px solid
+            rgba(
+              255,
+              255,
+              255,
+              .75
+            );
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              .96
+            );
+
+          box-shadow:
+            0
+            30px
+            90px
+            rgba(
+              0,
+              0,
+              0,
+              .38
+            ),
+
+            0
+            0
+            0
+            1px
+            rgba(
+              255,
+              255,
+              255,
+              .12
+            );
+
+          backdrop-filter:
+            blur(15px);
+
+          -webkit-backdrop-filter:
+            blur(15px);
+        }
+
+        /* =====================================
+           HEADER
+           ===================================== */
+
+        .text-center {
+          text-align: center;
+        }
+
+        .club-icon {
+          width: 52px;
+          height: 52px;
+
+          margin:
+            0 auto;
+
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          border-radius:
+            16px;
+
+          font-size: 25px;
+
+          color: white;
+
+          background:
+            linear-gradient(
+              135deg,
+              #1d4ed8,
+              #7c3aed
+            );
+
+          box-shadow:
+            0
+            12px
+            30px
+            rgba(
+              30,
+              64,
+              175,
+              .22
+            );
+        }
+
+        .club-title {
+          margin-top:
+            16px;
+
+          font-size:
+            clamp(
+              30px,
+              3vw,
+              40px
+            );
+
+          line-height: 1;
+
+          font-weight:
+            900;
+
+          letter-spacing:
+            -.035em;
+
+          color:
+            #172554;
+        }
+
+        .club-subtitle {
+          margin-top:
+            10px;
+
+          color:
+            #64748b;
+
+          font-size:
+            15px;
+        }
+
+        /* =====================================
+           INVITE
+           ===================================== */
+
+        .invite-banner {
+          margin-top:
+            20px;
+
+          padding:
+            13px 15px;
+
+          border:
+            1px solid
+            #bfdbfe;
+
+          border-radius:
+            12px;
+
+          background:
+            #eff6ff;
+
+          color:
+            #1e3a8a;
+
+          font-size:
+            14px;
+        }
+
+        /* =====================================
+           TABS
+           ===================================== */
+
+        .auth-tabs {
+          display: grid;
+
+          grid-template-columns:
+            repeat(
+              2,
+              minmax(
+                0,
+                1fr
+              )
+            );
+
+          margin-top:
+            26px;
+
+          padding:
+            6px;
+
+          border-radius:
+            14px;
+
+          background:
+            #f1f5f9;
+        }
+
+        .auth-tab {
+          border: 0;
+
+          border-radius:
+            10px;
+
+          padding:
+            11px 16px;
+
+          cursor: pointer;
+
+          background:
+            transparent;
+
+          color:
+            #64748b;
+
+          font-size:
+            14px;
+
+          font-weight:
+            700;
+
+          transition:
+            all
+            .2s
+            ease;
+        }
+
+        .auth-tab:hover {
+          color:
+            #172554;
+        }
+
+        .auth-tab.active {
+          color:
+            #1e3a8a;
+
+          background:
+            white;
+
+          box-shadow:
+            0
+            2px
+            8px
+            rgba(
+              15,
+              23,
+              42,
+              .1
+            );
+        }
+
+        /* =====================================
+           FORM
+           ===================================== */
+
+        .auth-form {
+          display: grid;
+
+          gap:
+            20px;
+
+          margin-top:
+            27px;
+        }
+
+        .field {
+          display: block;
+        }
+
+        .field > span {
+          display: block;
+
+          color:
+            #334155;
+
+          font-size:
+            14px;
+
+          font-weight:
+            700;
+        }
+
+        .field input {
+          width: 100%;
+
+          box-sizing:
+            border-box;
+
+          margin-top:
+            8px;
+
+          padding:
+            14px 15px;
+
+          border:
+            1px solid
+            #cbd5e1;
+
+          border-radius:
+            12px;
+
+          outline: none;
+
+          background:
+            rgba(
+              255,
+              255,
+              255,
+              .95
+            );
+
+          color:
+            #0f172a;
+
+          font-size:
+            15px;
+
+          box-shadow:
+            0
+            1px
+            2px
+            rgba(
+              15,
+              23,
+              42,
+              .04
+            );
+
+          transition:
+            border-color
+            .2s,
+            box-shadow
+            .2s;
+        }
+
+        .field input::placeholder {
+          color:
+            #94a3b8;
+        }
+
+        .field input:focus {
+          border-color:
+            #2563eb;
+
+          box-shadow:
+            0
+            0
+            0
+            4px
+            rgba(
+              37,
+              99,
+              235,
+              .1
+            );
+        }
+
+        .password-help {
+          display: flex;
+
+          align-items:
+            center;
+
+          justify-content:
+            space-between;
+
+          gap:
+            12px;
+
+          margin-top:
+            8px;
+        }
+
+        .password-help p {
+          margin: 0;
+
+          color:
+            #64748b;
+
+          font-size:
+            12px;
+        }
+
+        .password-help button {
+          border: 0;
+
+          padding: 0;
+
+          cursor: pointer;
+
+          background:
+            transparent;
+
+          color:
+            #1d4ed8;
+
+          font-size:
+            13px;
+
+          font-weight:
+            700;
+        }
+
+        .password-help button:hover {
+          text-decoration:
+            underline;
+        }
+
+        .password-help button:disabled {
+          cursor:
+            not-allowed;
+
+          opacity:
+            .55;
+        }
+
+        /* =====================================
+           PRIVACY
+           ===================================== */
+
+        .privacy-box {
+          display: flex;
+
+          align-items:
+            flex-start;
+
+          gap:
+            11px;
+
+          padding:
+            14px;
+
+          border:
+            1px solid
+            #e2e8f0;
+
+          border-radius:
+            12px;
+
+          background:
+            #f8fafc;
+        }
+
+        .privacy-box input {
+          width: 16px;
+          height: 16px;
+
+          margin-top:
+            3px;
+
+          flex-shrink: 0;
+
+          accent-color:
+            #1e3a8a;
+        }
+
+        .privacy-box label {
+          color:
+            #475569;
+
+          font-size:
+            13px;
+
+          line-height:
+            1.55;
+        }
+
+        .privacy-box a {
+          color:
+            #1d4ed8;
+
+          font-weight:
+            700;
+
+          text-decoration:
+            none;
+        }
+
+        .privacy-box a:hover {
+          text-decoration:
+            underline;
+        }
+
+        /* =====================================
+           BUTTON
+           ===================================== */
+
+        .submit-button {
+          margin-top:
+            2px;
+
+          border: 0;
+
+          border-radius:
+            12px;
+
+          padding:
+            14px 20px;
+
+          cursor: pointer;
+
+          background:
+            linear-gradient(
+              90deg,
+              #1d4ed8,
+              #2563eb,
+              #7c3aed
+            );
+
+          color:
+            white;
+
+          font-size:
+            15px;
+
+          font-weight:
+            800;
+
+          box-shadow:
+            0
+            12px
+            28px
+            rgba(
+              30,
+              64,
+              175,
+              .22
+            );
+
+          transition:
+            transform
+            .2s,
+            box-shadow
+            .2s;
+        }
+
+        .submit-button:hover:not(:disabled) {
+          transform:
+            translateY(
+              -2px
+            );
+
+          box-shadow:
+            0
+            16px
+            34px
+            rgba(
+              30,
+              64,
+              175,
+              .3
+            );
+        }
+
+        .submit-button:disabled {
+          cursor:
+            not-allowed;
+
+          opacity:
+            .6;
+        }
+
+        .alert-wrapper {
+          margin-top:
+            18px;
+        }
+/* =====================================
+   CRICKET BALL — BAT HIT ANIMATION
+   ===================================== */
+
+.ball-orbit {
+  position: absolute;
+  z-index: 6;
+
+  /* keep your current starting position if it lines up with the bat */
+  left: 39%;
+  top: 20%;
+
+  width: 25px;
+  height: 25px;
+
+  pointer-events: none;
+
+  /*
+   * GPU rendering helps eliminate little animation jumps
+   */
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+
+  animation:
+    ballArc
+    3.8s
+    linear
+    infinite;
+      }
+
+/* =====================================
+   ACTUAL BALL
+   ===================================== */
+
+.moving-ball {
+  position: absolute;
+  inset: 0;
+
+  border-radius: 50%;
+
+  background:
+    radial-gradient(
+      circle at 35% 30%,
+      #fb7185,
+      #be123c 52%,
+      #650a22
+    );
+
+  box-shadow:
+    0 0 10px rgba(244, 114, 182, .9),
+    0 0 22px rgba(217, 70, 239, .65);
+
+  /*
+   * Fast rotation makes the seam visibly
+   * spin while the ball is travelling.
+   */
+  animation:
+    ballSpin
+    .24s
+    linear
+    infinite;
+
+    will-change: transform;
+}
+
+
+/* =====================================
+   CRICKET BALL SEAM
+   ===================================== */
+
+.moving-ball span {
+  position: absolute;
+
+  left: 11px;
+  top: 3px;
+
+  width: 2px;
+  height: 19px;
+
+  border-left:
+    1px dashed
+    rgba(255, 255, 255, .95);
+
+  transform:
+    rotate(27deg);
+}
+
+
+/* =====================================
+   MOTION / NEON TRAIL
+   ===================================== */
+
+.light-trail {
+  position: absolute;
+
+  /*
+   * Trail sits BEHIND the ball.
+   */
+  right: 12px;
+  top: 10px;
+
+  width: 115px;
+  height: 5px;
+
+  border-radius: 999px;
+
+  transform-origin: right center;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(96, 165, 250, .2),
+      rgba(240, 171, 252, .7),
+      #ec4899
+    );
+
+  filter: blur(3px);
+
+  opacity: 0;
+
+  animation:
+    trailPulse
+    4.2s
+    ease-out
+    infinite;
+}
+
+
+/* =====================================
+   BACKGROUND SUBTLE MOVEMENT
+   ===================================== */
+
+@keyframes cinematicDrift {
+
+  from {
+    transform:
+      scale(1)
+      translate3d(0, 0, 0);
+  }
+
+  to {
+    transform:
+      scale(1.012)
+      translate3d(-3px, -2px, 0);
+  }
+}
+
+
+/* =====================================
+   BALL SPIN
+   ===================================== */
+
+@keyframes ballSpin {
+
+  from {
+    transform:
+      rotate(0deg);
+  }
+
+  to {
+    transform:
+      rotate(360deg);
+  }
+}
+
+
+/* =====================================
+   BALL FLIGHT
+
+   0–18%:
+   invisible while animation resets
+
+   20–27%:
+   ball appears at bat
+
+   30%:
+   tiny impact movement
+
+   35–80%:
+   ball launches upward/right
+
+   100%:
+   ball disappears into distance
+   ===================================== */
+
+@keyframes ballArc {
+
+  /* Waiting/reset period */
+  0%,
+  14% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.65);
+
+    opacity: 0;
+  }
+
+  /* Ball appears at the bat */
+  17% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.78);
+
+    opacity: 1;
+  }
+
+  /* Tiny contact/compression */
+  20% {
+    transform:
+      translate3d(4px, -2px, 0)
+      scale(.9);
+
+    opacity: 1;
+  }
+
+  /* HIT */
+  23% {
+    transform:
+      translate3d(18px, -10px, 0)
+      scale(1);
+
+    opacity: 1;
+  }
+
+  /*
+   * Lots of smaller steps along the same curve.
+   * This is what makes the flight look fluid.
+   */
+
+  30% {
+    transform:
+      translate3d(58px, -31px, 0)
+      scale(.97);
+
+    opacity: 1;
+  }
+
+  38% {
+    transform:
+      translate3d(110px, -57px, 0)
+      scale(.92);
+
+    opacity: 1;
+  }
+
+  46% {
+    transform:
+      translate3d(170px, -82px, 0)
+      scale(.87);
+
+    opacity: 1;
+  }
+
+  54% {
+    transform:
+      translate3d(235px, -107px, 0)
+      scale(.80);
+
+    opacity: 1;
+  }
+
+  62% {
+    transform:
+      translate3d(305px, -131px, 0)
+      scale(.72);
+
+    opacity: 1;
+  }
+
+  70% {
+    transform:
+      translate3d(380px, -153px, 0)
+      scale(.64);
+
+    opacity: .98;
+  }
+
+  78% {
+    transform:
+      translate3d(455px, -173px, 0)
+      scale(.55);
+
+    opacity: .9;
+  }
+
+  86% {
+    transform:
+      translate3d(525px, -190px, 0)
+      scale(.46);
+
+    opacity: .72;
+  }
+
+  93% {
+    transform:
+      translate3d(585px, -202px, 0)
+      scale(.37);
+
+    opacity: .35;
+  }
+
+  100% {
+    transform:
+      translate3d(630px, -210px, 0)
+      scale(.30);
+
+    opacity: 0;
+  }
+}
+
+/* =====================================
+   TRAIL APPEARS ONLY AFTER BAT CONTACT
+   ===================================== */
+
+@keyframes trailPulse {
+
+  0%,
+  24% {
+    opacity: 0;
+    transform:
+      rotate(-18deg)
+      scaleX(.2);
+  }
+
+  31% {
+    opacity: .95;
+    transform:
+      rotate(-18deg)
+      scaleX(.55);
+  }
+
+  45% {
+    opacity: .8;
+    transform:
+      rotate(-18deg)
+      scaleX(1);
+  }
+
+  75% {
+    opacity: .45;
+    transform:
+      rotate(-18deg)
+      scaleX(.75);
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      rotate(-18deg)
+      scaleX(.25);
+  }
+}
+        /* =====================================
+           TABLET
+           ===================================== */
+
+        @media (
+          max-width:
+          1023px
+        ) {
+
+          .starz-auth {
+            min-height:
+              100vh;
+
+            overflow-y:
+              auto;
+
+            display:
+              block;
+
+            padding-bottom:
+              28px;
+          }
+
+          .cinematic-background {
+            position:
+              absolute;
+
+            height:
+              480px;
+
+            background-size:
+              cover;
+
+            /*
+             * Focus on player on
+             * narrower screens.
+             */
+
+            background-position:
+              30%
+              center;
+
+            animation:
+              none;
+          }
+
+          .background-overlay {
+            height:
+              480px;
+
+            background:
+              linear-gradient(
+                180deg,
+                rgba(
+                  3,
+                  13,
+                  35,
+                  .03
+                )
+                0%,
+
+                rgba(
+                  3,
+                  13,
+                  35,
+                  .15
+                )
+                65%,
+
+                #06152d
+                100%
+              );
+          }
+
+          .auth-content {
+            width: 100%;
+
+            min-height:
+              auto;
+
+            box-sizing:
+              border-box;
+
+            justify-content:
+              center;
+
+            padding:
+              390px
+              16px
+              30px;
+          }
+
+          .form-card {
+            max-width:
+              560px;
+
+            padding:
+              28px
+              23px;
+          }
+
+          .ball-orbit {
+            display:
+              none;
+          }
+
+        }
+
+        /* =====================================
+           MOBILE
+           ===================================== */
+
+        @media (
+          max-width:
+          560px
+        ) {
+
+          .starz-auth {
+            background:
+              #06152d;
+          }
+
+          .cinematic-background {
+            height:
+              390px;
+
+            background-size:
+              cover;
+
+            background-position:
+              27%
+              center;
+          }
+
+          .background-overlay {
+            height:
+              390px;
+          }
+
+          .auth-content {
+            padding:
+              310px
+              12px
+              24px;
+          }
+
+          .form-card {
+            padding:
+              24px
+              18px;
+
+            border-radius:
+              24px;
+          }
+
+          .club-icon {
+            width:
+              46px;
+
+            height:
+              46px;
+
+            font-size:
+              22px;
+          }
+
+          .club-title {
+            margin-top:
+              13px;
+
+            font-size:
+              29px;
+          }
+
+          .club-subtitle {
+            font-size:
+              13px;
+          }
+
+          .auth-tabs {
+            margin-top:
+              22px;
+          }
+
+          .auth-form {
+            margin-top:
+              22px;
+
+            gap:
+              18px;
+          }
+
+          .field input {
+            padding:
+              13px
+              14px;
+          }
+
+          .password-help {
+            align-items:
+              flex-start;
+          }
+
+        }
+
+        /* =====================================
+           ACCESSIBILITY
+           ===================================== */
+
+        @media (
+          prefers-reduced-motion:
+          reduce
+        ) {
+
+          .cinematic-background,
+          .ball-orbit,
+          .moving-ball {
+            animation:
+              none
+              !important;
+          }
+
+          .ball-orbit {
+            display:
+              none;
+          }
+
+        }
+
+      `}</style>
+
     </main>
   );
 }
