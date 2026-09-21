@@ -2418,7 +2418,6 @@ export default function AuthPageClient() {
             }
           }
         }
-
         /* =====================================
            ACCESSIBILITY
            ===================================== */
@@ -2444,5 +2443,3 @@ export default function AuthPageClient() {
     </main>
   );
 }
-
-
