@@ -2067,49 +2067,58 @@ export default function AuthPageClient() {
 }
 
 @keyframes mobileBallArc {
+
+  /* Ball sitting at bat */
   0%,
   14% {
-    transform: translate3d(0, 0, 0) scale(.65);
+    transform: translate3d(0, 0, 0) scale(.75);
     opacity: 0;
   }
 
-  17% {
-    transform: translate3d(0, 0, 0) scale(.8);
+  /* Appears AT contact point */
+  15% {
+    transform: translate3d(0, 0, 0) scale(.9);
     opacity: 1;
   }
 
-  20% {
-    transform: translate3d(3px, -2px, 0) scale(.9);
+  /* Hit */
+  18% {
+    transform: translate3d(5px, -4px, 0) scale(1);
     opacity: 1;
   }
 
-  23% {
-    transform: translate3d(12px, -8px, 0) scale(1);
+  28% {
+    transform: translate3d(28px, -17px, 0) scale(.96);
     opacity: 1;
   }
 
-  38% {
-    transform: translate3d(55px, -32px, 0) scale(.9);
+  40% {
+    transform: translate3d(62px, -34px, 0) scale(.9);
     opacity: 1;
   }
 
-  55% {
-    transform: translate3d(110px, -59px, 0) scale(.78);
+  53% {
+    transform: translate3d(101px, -49px, 0) scale(.82);
     opacity: 1;
   }
 
-  72% {
-    transform: translate3d(165px, -82px, 0) scale(.62);
-    opacity: .9;
+  67% {
+    transform: translate3d(143px, -61px, 0) scale(.7);
+    opacity: .95;
   }
 
-  87% {
-    transform: translate3d(215px, -100px, 0) scale(.45);
-    opacity: .6;
+  80% {
+    transform: translate3d(181px, -68px, 0) scale(.58);
+    opacity: .75;
+  }
+
+  92% {
+    transform: translate3d(211px, -71px, 0) scale(.45);
+    opacity: .35;
   }
 
   100% {
-    transform: translate3d(255px, -112px, 0) scale(.3);
+    transform: translate3d(230px, -69px, 0) scale(.35);
     opacity: 0;
   }
 }
@@ -2387,11 +2396,11 @@ export default function AuthPageClient() {
             display: block !important;
             position: absolute;
 
-            left: 49%;
-            top: 177px;
+            left: 39%;
+            top: 158px;
 
-            width: 11px;
-            height: 11px;
+            width: 9px;
+            height: 9px;
 
             z-index: 8;
             opacity: 1;
