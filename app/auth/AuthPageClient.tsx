@@ -861,8 +861,10 @@ export default function AuthPageClient() {
 
         .starz-auth {
           position: relative;
-          width: 100%;
+          width: 100vw;
           min-height: 100vh;
+          min-height: 100dvh;
+          margin-left: calc(50% - 50vw);
           overflow: hidden;
 
           display: flex;
@@ -901,8 +903,11 @@ export default function AuthPageClient() {
            * instead of zooming/cropping it.
            */
 
+          width: 100%;
+          height: 100%;
+
           background-size:
-            contain;
+            cover !important;
 
           background-position:
             center center;
@@ -2201,10 +2206,7 @@ export default function AuthPageClient() {
               23px;
           }
 
-          .ball-orbit {
-            display:
-              none;
-          }
+       
 
         }
 
@@ -2212,97 +2214,209 @@ export default function AuthPageClient() {
            MOBILE
            ===================================== */
 
-        @media (
-          max-width:
-          560px
-        ) {
-
+        @media (max-width: 560px) {
           .starz-auth {
-            background:
-              #06152d;
+            width: 100vw;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin-left: calc(50% - 50vw);
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: #06152d;
+            display: block;
+            padding-bottom: 8px;
           }
 
           .cinematic-background {
-            height:
-              390px;
-
-            background-size:
-              cover;
-
-            background-position:
-              27%
-              center;
+            inset: 0 0 auto 0;
+            width: 100vw;
+            height: 340px;
+            background-size: cover !important;
+            background-position: 27% center;
+            background-repeat: no-repeat;
+            animation: none;
           }
 
           .background-overlay {
-            height:
-              390px;
+            inset: 0 0 auto 0;
+            width: 100vw;
+            height: 340px;
+            background:
+              linear-gradient(
+                180deg,
+                rgba(3, 13, 35, .02) 0%,
+                rgba(3, 13, 35, .08) 68%,
+                rgba(3, 13, 35, .72) 100%
+              );
           }
 
           .auth-content {
-            padding:
-              310px
-              12px
-              24px;
+            width: 100%;
+            min-height: auto;
+            box-sizing: border-box;
+            justify-content: center;
+            padding: 270px 12px 12px;
           }
 
           .form-card {
-            padding:
-              24px
-              18px;
-
-            border-radius:
-              24px;
-          }
-
-          .club-icon {
-            width:
-              46px;
-
-            height:
-              46px;
-
-            font-size:
-              22px;
+            width: 100%;
+            max-width: 560px;
+            box-sizing: border-box;
+            padding: 20px 18px 18px;
+            border-radius: 24px;
           }
 
           .club-title {
-            margin-top:
-              10px;
-
-            font-size:
-              29px;
+            margin-top: 0;
+            margin-bottom: 0;
+            font-size: 27px;
+            line-height: 1.05;
+            font-weight: 600;
           }
 
           .club-subtitle {
-            font-size:
-              13px;
+            margin-top: 7px;
+            font-size: 13px;
+            line-height: 1.3;
+          }
+
+          .invite-banner {
+            margin-top: 12px;
+            padding: 10px 12px;
           }
 
           .auth-tabs {
-            margin-top:
-              22px;
+            margin-top: 16px;
+            padding: 5px;
+          }
+
+          .auth-tab {
+            padding: 9px 12px;
           }
 
           .auth-form {
-            margin-top:
-              22px;
+            margin-top: 16px;
+            gap: 14px;
+          }
 
-            gap:
-              18px;
+          .field > span {
+            font-size: 13px;
           }
 
           .field input {
-            padding:
-              13px
-              14px;
+            margin-top: 6px;
+            padding: 11px 13px;
+            font-size: 16px;
           }
 
           .password-help {
-            align-items:
-              flex-start;
+            margin-top: 6px;
+            align-items: center;
           }
 
+          .password-help p {
+            font-size: 11px;
+          }
+
+          .password-help button {
+            font-size: 12px;
+          }
+
+          .submit-button {
+            margin-top: 0;
+            padding: 12px 18px;
+            min-height: 46px;
+          }
+
+          .privacy-box {
+            padding: 10px;
+          }
+
+          .alert-wrapper {
+            margin-top: 12px;
+          }
+
+          /* Small animated ball aligned to the bat in the mobile hero. */
+          .ball-orbit {
+            display: block !important;
+            position: absolute;
+            left: 49%;
+            top: 151px;
+            width: 11px;
+            height: 11px;
+            z-index: 8;
+            opacity: 1;
+            pointer-events: none;
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+            animation: mobileBallArc 3.8s linear infinite !important;
+          }
+
+          .moving-ball {
+            width: 100%;
+            height: 100%;
+            animation: ballSpin .20s linear infinite !important;
+          }
+
+          .moving-ball span {
+            left: 4px;
+            top: 1px;
+            width: 1px;
+            height: 8px;
+          }
+
+          .light-trail {
+            right: 5px;
+            top: 4px;
+            width: 42px;
+            height: 2px;
+            filter: blur(1.2px);
+            opacity: .55;
+          }
+
+          @keyframes mobileBallArc {
+            0%, 15% {
+              transform: translate3d(0, 0, 0) scale(.70);
+              opacity: 0;
+            }
+            18% {
+              transform: translate3d(0, 0, 0) scale(.85);
+              opacity: 1;
+            }
+            21% {
+              transform: translate3d(2px, -2px, 0) scale(1);
+              opacity: 1;
+            }
+            25% {
+              transform: translate3d(10px, -8px, 0) scale(1);
+              opacity: 1;
+            }
+            35% {
+              transform: translate3d(36px, -24px, 0) scale(.94);
+              opacity: 1;
+            }
+            47% {
+              transform: translate3d(73px, -43px, 0) scale(.86);
+              opacity: 1;
+            }
+            60% {
+              transform: translate3d(112px, -59px, 0) scale(.75);
+              opacity: 1;
+            }
+            73% {
+              transform: translate3d(151px, -72px, 0) scale(.63);
+              opacity: .9;
+            }
+            86% {
+              transform: translate3d(187px, -82px, 0) scale(.48);
+              opacity: .6;
+            }
+            100% {
+              transform: translate3d(218px, -88px, 0) scale(.32);
+              opacity: 0;
+            }
+          }
         }
 
         /* =====================================
@@ -2330,3 +2444,5 @@ export default function AuthPageClient() {
     </main>
   );
 }
+
+
