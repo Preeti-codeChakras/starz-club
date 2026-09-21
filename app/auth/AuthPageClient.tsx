@@ -615,9 +615,6 @@ export default function AuthPageClient() {
 
           <div className="text-center">
 
-            <div className="club-icon">
-              🏏
-            </div>
 
             <h1 className="club-title">
               Starz Club
@@ -864,8 +861,10 @@ export default function AuthPageClient() {
 
         .starz-auth {
           position: relative;
-          width: 100%;
+          width: 100vw;
           min-height: 100vh;
+          min-height: 100dvh;
+          margin-left: calc(50% - 50vw);
           overflow: hidden;
 
           display: flex;
@@ -904,8 +903,11 @@ export default function AuthPageClient() {
            * instead of zooming/cropping it.
            */
 
+          width: 100%;
+          height: 100%;
+
           background-size:
-            contain;
+            cover !important;
 
           background-position:
             center center;
@@ -982,7 +984,7 @@ export default function AuthPageClient() {
           position: relative;
           z-index: 10;
 
-          width: 48%;
+          width: 40%;
           min-height: 100vh;
 
           display: flex;
@@ -1004,17 +1006,17 @@ export default function AuthPageClient() {
 
         .form-card {
           width: 100%;
-          max-width: 500px;
+          max-width: 400px;
 
           padding:
             clamp(
-              27px,
-              3vw,
-              42px
+              22px,
+              2.2vw,
+              32px
             );
 
           border-radius:
-            28px;
+            24px;
 
           border:
             1px solid
@@ -1030,30 +1032,21 @@ export default function AuthPageClient() {
               255,
               255,
               255,
-              .96
+              .94
             );
 
           box-shadow:
             0
-            30px
-            90px
+            25px
+            70px
             rgba(
               0,
               0,
               0,
-              .38
+              .32
             ),
 
-            0
-            0
-            0
-            1px
-            rgba(
-              255,
-              255,
-              255,
-              .12
-            );
+         
 
           backdrop-filter:
             blur(15px);
@@ -1567,35 +1560,284 @@ export default function AuthPageClient() {
             18px;
         }
 /* =====================================
-   CRICKET BALL — BAT HIT ANIMATION
+   BALL POSITION + FLIGHT
+   New Washington background
    ===================================== */
 
 .ball-orbit {
   position: absolute;
   z-index: 6;
 
-  /* keep your current starting position if it lines up with the bat */
-  left: 39%;
-  top: 20%;
+  /*
+   * Start directly at the bat.
+   * Tuned for the new zoomed-out image.
+   */
+  left: 37.5%;
+  top: 35%;
 
-  width: 25px;
-  height: 25px;
+  width: 15px;
+  height: 15px;
 
   pointer-events: none;
 
-  /*
-   * GPU rendering helps eliminate little animation jumps
-   */
   will-change: transform, opacity;
   backface-visibility: hidden;
+  transform: translateZ(0);
 
   animation:
     ballArc
-    3.8s
+    4s
     linear
     infinite;
-      }
+}
 
+
+/* =====================================
+   SMOOTH HIT → FLIGHT
+   ===================================== */
+
+@keyframes ballArc {
+
+  /* invisible/reset */
+  0%,
+  16% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.65);
+
+    opacity: 0;
+  }
+
+  /* appears right at bat */
+  18% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.8);
+
+    opacity: 1;
+  }
+
+  /* moment of contact */
+  21% {
+    transform:
+      translate3d(3px, -2px, 0)
+      scale(.95);
+
+    opacity: 1;
+  }
+
+  /* HIT */
+  24% {
+    transform:
+      translate3d(16px, -10px, 0)
+      scale(1);
+
+    opacity: 1;
+  }
+
+  30% {
+    transform:
+      translate3d(55px, -31px, 0)
+      scale(.97);
+
+    opacity: 1;
+  }
+
+  38% {
+    transform:
+      translate3d(115px, -61px, 0)
+      scale(.92);
+
+    opacity: 1;
+  }
+
+  46% {
+    transform:
+      translate3d(185px, -91px, 0)
+      scale(.86);
+
+    opacity: 1;
+  }
+
+  54% {
+    transform:
+      translate3d(265px, -119px, 0)
+      scale(.79);
+
+    opacity: 1;
+  }
+
+  62% {
+    transform:
+      translate3d(350px, -145px, 0)
+      scale(.71);
+
+    opacity: 1;
+  }
+
+  70% {
+    transform:
+      translate3d(440px, -168px, 0)
+      scale(.63);
+
+    opacity: .95;
+  }
+
+  78% {
+    transform:
+      translate3d(530px, -188px, 0)
+      scale(.54);
+
+    opacity: .82;
+  }
+
+  86% {
+    transform:
+      translate3d(615px, -204px, 0)
+      scale(.45);
+
+    opacity: .60;
+  }
+
+  93% {
+    transform:
+      translate3d(685px, -215px, 0)
+      scale(.36);
+
+    opacity: .30;
+  }
+
+  100% {
+    transform:
+      translate3d(745px, -222px, 0)
+      scale(.28);
+
+    opacity: 0;
+  }
+}
+/* =====================================
+   SMOOTH HIT → FLIGHT
+   ===================================== */
+
+@keyframes ballArc {
+
+  /* invisible/reset */
+  0%,
+  16% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.65);
+
+    opacity: 0;
+  }
+
+  /* appears right at bat */
+  18% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.8);
+
+    opacity: 1;
+  }
+
+  /* moment of contact */
+  21% {
+    transform:
+      translate3d(3px, -2px, 0)
+      scale(.95);
+
+    opacity: 1;
+  }
+
+  /* HIT */
+  24% {
+    transform:
+      translate3d(16px, -10px, 0)
+      scale(1);
+
+    opacity: 1;
+  }
+
+  30% {
+    transform:
+      translate3d(55px, -31px, 0)
+      scale(.97);
+
+    opacity: 1;
+  }
+
+  38% {
+    transform:
+      translate3d(115px, -61px, 0)
+      scale(.92);
+
+    opacity: 1;
+  }
+
+  46% {
+    transform:
+      translate3d(185px, -91px, 0)
+      scale(.86);
+
+    opacity: 1;
+  }
+
+  54% {
+    transform:
+      translate3d(265px, -119px, 0)
+      scale(.79);
+
+    opacity: 1;
+  }
+
+  62% {
+    transform:
+      translate3d(350px, -145px, 0)
+      scale(.71);
+
+    opacity: 1;
+  }
+
+  70% {
+    transform:
+      translate3d(440px, -168px, 0)
+      scale(.63);
+
+    opacity: .95;
+  }
+
+  78% {
+    transform:
+      translate3d(530px, -188px, 0)
+      scale(.54);
+
+    opacity: .82;
+  }
+
+  86% {
+    transform:
+      translate3d(615px, -204px, 0)
+      scale(.45);
+
+    opacity: .60;
+  }
+
+  93% {
+    transform:
+      translate3d(685px, -215px, 0)
+      scale(.36);
+
+    opacity: .30;
+  }
+
+  100% {
+    transform:
+      translate3d(745px, -222px, 0)
+      scale(.28);
+
+    opacity: 0;
+  }
+}
 /* =====================================
    ACTUAL BALL
    ===================================== */
@@ -1622,13 +1864,13 @@ export default function AuthPageClient() {
    * Fast rotation makes the seam visibly
    * spin while the ball is travelling.
    */
-  animation:
+   animation:
     ballSpin
-    .24s
+    .22s
     linear
     infinite;
 
-    will-change: transform;
+  will-change: transform;
 }
 
 
@@ -1661,37 +1903,27 @@ export default function AuthPageClient() {
 .light-trail {
   position: absolute;
 
-  /*
-   * Trail sits BEHIND the ball.
-   */
   right: 12px;
   top: 10px;
 
-  width: 115px;
-  height: 5px;
+  width: 80px;
+  height: 3px;
 
   border-radius: 999px;
-
-  transform-origin: right center;
 
   background:
     linear-gradient(
       90deg,
       transparent,
-      rgba(96, 165, 250, .2),
-      rgba(240, 171, 252, .7),
-      #ec4899
+      rgba(255, 255, 255, .20),
+      rgba(244, 114, 182, .65)
     );
 
-  filter: blur(3px);
+  filter: blur(2px);
 
-  opacity: 0;
+  opacity: .65;
 
-  animation:
-    trailPulse
-    4.2s
-    ease-out
-    infinite;
+  transform: rotate(-18deg);
 }
 
 
@@ -1928,6 +2160,83 @@ export default function AuthPageClient() {
           1023px
         ) {
 
+.ball-orbit {
+  display: block;
+
+  /* position ball at the bat on mobile */
+  left: 47%;
+  top: 17%;
+
+  width: 19px;
+  height: 19px;
+
+  z-index: 6;
+
+  animation:
+    mobileBallArc
+    3.8s
+    linear
+    infinite;
+}
+
+.moving-ball span {
+  left: 8px;
+  top: 2px;
+  height: 15px;
+}
+
+.light-trail {
+  width: 75px;
+}
+
+@keyframes mobileBallArc {
+  0%,
+  14% {
+    transform: translate3d(0, 0, 0) scale(.65);
+    opacity: 0;
+  }
+
+  17% {
+    transform: translate3d(0, 0, 0) scale(.8);
+    opacity: 1;
+  }
+
+  20% {
+    transform: translate3d(3px, -2px, 0) scale(.9);
+    opacity: 1;
+  }
+
+  23% {
+    transform: translate3d(12px, -8px, 0) scale(1);
+    opacity: 1;
+  }
+
+  38% {
+    transform: translate3d(55px, -32px, 0) scale(.9);
+    opacity: 1;
+  }
+
+  55% {
+    transform: translate3d(110px, -59px, 0) scale(.78);
+    opacity: 1;
+  }
+
+  72% {
+    transform: translate3d(165px, -82px, 0) scale(.62);
+    opacity: .9;
+  }
+
+  87% {
+    transform: translate3d(215px, -100px, 0) scale(.45);
+    opacity: .6;
+  }
+
+  100% {
+    transform: translate3d(255px, -112px, 0) scale(.3);
+    opacity: 0;
+  }
+}
+
           .starz-auth {
             min-height:
               100vh;
@@ -2020,10 +2329,7 @@ export default function AuthPageClient() {
               23px;
           }
 
-          .ball-orbit {
-            display:
-              none;
-          }
+       
 
         }
 
@@ -2031,99 +2337,210 @@ export default function AuthPageClient() {
            MOBILE
            ===================================== */
 
-        @media (
-          max-width:
-          560px
-        ) {
-
+        @media (max-width: 560px) {
           .starz-auth {
-            background:
-              #06152d;
+            width: 100vw;
+            min-height: 100vh;
+            min-height: 100dvh;
+            margin-left: calc(50% - 50vw);
+            overflow-x: hidden;
+            overflow-y: auto;
+            background: #06152d;
+            display: block;
+            padding-bottom: 8px;
           }
 
           .cinematic-background {
-            height:
-              390px;
-
-            background-size:
-              cover;
-
-            background-position:
-              27%
-              center;
+            inset: 0 0 auto 0;
+            width: 100vw;
+            height: 340px;
+            background-size: cover !important;
+            background-position: 27% center;
+            background-repeat: no-repeat;
+            animation: none;
           }
 
           .background-overlay {
-            height:
-              390px;
+            inset: 0 0 auto 0;
+            width: 100vw;
+            height: 340px;
+            background:
+              linear-gradient(
+                180deg,
+                rgba(3, 13, 35, .02) 0%,
+                rgba(3, 13, 35, .08) 68%,
+                rgba(3, 13, 35, .72) 100%
+              );
           }
 
           .auth-content {
-            padding:
-              310px
-              12px
-              24px;
+            width: 100%;
+            min-height: auto;
+            box-sizing: border-box;
+            justify-content: center;
+            padding: 270px 12px 12px;
           }
 
           .form-card {
-            padding:
-              24px
-              18px;
-
-            border-radius:
-              24px;
-          }
-
-          .club-icon {
-            width:
-              46px;
-
-            height:
-              46px;
-
-            font-size:
-              22px;
+            width: 100%;
+            max-width: 560px;
+            box-sizing: border-box;
+            padding: 20px 18px 18px;
+            border-radius: 24px;
           }
 
           .club-title {
-            margin-top:
-              13px;
-
-            font-size:
-              29px;
+            margin-top: 0;
+            margin-bottom: 0;
+            font-size: 27px;
+            line-height: 1.05;
+            font-weight: 600;
           }
 
           .club-subtitle {
-            font-size:
-              13px;
+            margin-top: 7px;
+            font-size: 13px;
+            line-height: 1.3;
+          }
+
+          .invite-banner {
+            margin-top: 12px;
+            padding: 10px 12px;
           }
 
           .auth-tabs {
-            margin-top:
-              22px;
+            margin-top: 16px;
+            padding: 5px;
+          }
+
+          .auth-tab {
+            padding: 9px 12px;
           }
 
           .auth-form {
-            margin-top:
-              22px;
+            margin-top: 16px;
+            gap: 14px;
+          }
 
-            gap:
-              18px;
+          .field > span {
+            font-size: 13px;
           }
 
           .field input {
-            padding:
-              13px
-              14px;
+            margin-top: 6px;
+            padding: 11px 13px;
+            font-size: 16px;
           }
 
           .password-help {
-            align-items:
-              flex-start;
+            margin-top: 6px;
+            align-items: center;
           }
 
-        }
+          .password-help p {
+            font-size: 11px;
+          }
 
+          .password-help button {
+            font-size: 12px;
+          }
+
+          .submit-button {
+            margin-top: 0;
+            padding: 12px 18px;
+            min-height: 46px;
+          }
+
+          .privacy-box {
+            padding: 10px;
+          }
+
+          .alert-wrapper {
+            margin-top: 12px;
+          }
+
+          /* Small animated ball aligned to the bat in the mobile hero. */
+          .ball-orbit {
+            display: block !important;
+            position: absolute;
+            left: 49%;
+            top: 151px;
+            width: 11px;
+            height: 11px;
+            z-index: 8;
+            opacity: 1;
+            pointer-events: none;
+            will-change: transform, opacity;
+            backface-visibility: hidden;
+            transform: translateZ(0);
+            animation: mobileBallArc 3.8s linear infinite !important;
+          }
+
+          .moving-ball {
+            width: 100%;
+            height: 100%;
+            animation: ballSpin .20s linear infinite !important;
+          }
+
+          .moving-ball span {
+            left: 4px;
+            top: 1px;
+            width: 1px;
+            height: 8px;
+          }
+
+          .light-trail {
+            right: 5px;
+            top: 4px;
+            width: 42px;
+            height: 2px;
+            filter: blur(1.2px);
+            opacity: .55;
+          }
+
+          @keyframes mobileBallArc {
+            0%, 15% {
+              transform: translate3d(0, 0, 0) scale(.70);
+              opacity: 0;
+            }
+            18% {
+              transform: translate3d(0, 0, 0) scale(.85);
+              opacity: 1;
+            }
+            21% {
+              transform: translate3d(2px, -2px, 0) scale(1);
+              opacity: 1;
+            }
+            25% {
+              transform: translate3d(10px, -8px, 0) scale(1);
+              opacity: 1;
+            }
+            35% {
+              transform: translate3d(36px, -24px, 0) scale(.94);
+              opacity: 1;
+            }
+            47% {
+              transform: translate3d(73px, -43px, 0) scale(.86);
+              opacity: 1;
+            }
+            60% {
+              transform: translate3d(112px, -59px, 0) scale(.75);
+              opacity: 1;
+            }
+            73% {
+              transform: translate3d(151px, -72px, 0) scale(.63);
+              opacity: .9;
+            }
+            86% {
+              transform: translate3d(187px, -82px, 0) scale(.48);
+              opacity: .6;
+            }
+            100% {
+              transform: translate3d(218px, -88px, 0) scale(.32);
+              opacity: 0;
+            }
+          }
+        }
         /* =====================================
            ACCESSIBILITY
            ===================================== */
@@ -2141,10 +2558,6 @@ export default function AuthPageClient() {
               !important;
           }
 
-          .ball-orbit {
-            display:
-              none;
-          }
 
         }
 
