@@ -1572,7 +1572,7 @@ export default function AuthPageClient() {
    * Start directly at the bat.
    * Tuned for the new zoomed-out image.
    */
-  left: 37.5%;
+  left: 39%;
   top: 35%;
 
   width: 15px;
@@ -2051,7 +2051,7 @@ export default function AuthPageClient() {
 
   animation:
     mobileBallArc
-    3.8s
+    2.7s
     linear
     infinite;
 }
@@ -2396,7 +2396,7 @@ export default function AuthPageClient() {
             display: block !important;
             position: absolute;
 
-            left: 38%;
+            left: 40%;
             top: 174px;
 
             width: 9px;
@@ -2412,7 +2412,7 @@ export default function AuthPageClient() {
 
             animation:
               mobileBallArc
-              3.8s
+              2.7s
               linear
               infinite !important;
           }
