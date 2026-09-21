@@ -1716,6 +1716,129 @@ export default function AuthPageClient() {
   }
 }
 /* =====================================
+   SMOOTH HIT → FLIGHT
+   ===================================== */
+
+@keyframes ballArc {
+
+  /* invisible/reset */
+  0%,
+  16% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.65);
+
+    opacity: 0;
+  }
+
+  /* appears right at bat */
+  18% {
+    transform:
+      translate3d(0, 0, 0)
+      scale(.8);
+
+    opacity: 1;
+  }
+
+  /* moment of contact */
+  21% {
+    transform:
+      translate3d(3px, -2px, 0)
+      scale(.95);
+
+    opacity: 1;
+  }
+
+  /* HIT */
+  24% {
+    transform:
+      translate3d(16px, -10px, 0)
+      scale(1);
+
+    opacity: 1;
+  }
+
+  30% {
+    transform:
+      translate3d(55px, -31px, 0)
+      scale(.97);
+
+    opacity: 1;
+  }
+
+  38% {
+    transform:
+      translate3d(115px, -61px, 0)
+      scale(.92);
+
+    opacity: 1;
+  }
+
+  46% {
+    transform:
+      translate3d(185px, -91px, 0)
+      scale(.86);
+
+    opacity: 1;
+  }
+
+  54% {
+    transform:
+      translate3d(265px, -119px, 0)
+      scale(.79);
+
+    opacity: 1;
+  }
+
+  62% {
+    transform:
+      translate3d(350px, -145px, 0)
+      scale(.71);
+
+    opacity: 1;
+  }
+
+  70% {
+    transform:
+      translate3d(440px, -168px, 0)
+      scale(.63);
+
+    opacity: .95;
+  }
+
+  78% {
+    transform:
+      translate3d(530px, -188px, 0)
+      scale(.54);
+
+    opacity: .82;
+  }
+
+  86% {
+    transform:
+      translate3d(615px, -204px, 0)
+      scale(.45);
+
+    opacity: .60;
+  }
+
+  93% {
+    transform:
+      translate3d(685px, -215px, 0)
+      scale(.36);
+
+    opacity: .30;
+  }
+
+  100% {
+    transform:
+      translate3d(745px, -222px, 0)
+      scale(.28);
+
+    opacity: 0;
+  }
+}
+/* =====================================
    ACTUAL BALL
    ===================================== */
 
