@@ -1716,129 +1716,6 @@ export default function AuthPageClient() {
   }
 }
 /* =====================================
-   SMOOTH HIT → FLIGHT
-   ===================================== */
-
-@keyframes ballArc {
-
-  /* invisible/reset */
-  0%,
-  16% {
-    transform:
-      translate3d(0, 0, 0)
-      scale(.65);
-
-    opacity: 0;
-  }
-
-  /* appears right at bat */
-  18% {
-    transform:
-      translate3d(0, 0, 0)
-      scale(.8);
-
-    opacity: 1;
-  }
-
-  /* moment of contact */
-  21% {
-    transform:
-      translate3d(3px, -2px, 0)
-      scale(.95);
-
-    opacity: 1;
-  }
-
-  /* HIT */
-  24% {
-    transform:
-      translate3d(16px, -10px, 0)
-      scale(1);
-
-    opacity: 1;
-  }
-
-  30% {
-    transform:
-      translate3d(55px, -31px, 0)
-      scale(.97);
-
-    opacity: 1;
-  }
-
-  38% {
-    transform:
-      translate3d(115px, -61px, 0)
-      scale(.92);
-
-    opacity: 1;
-  }
-
-  46% {
-    transform:
-      translate3d(185px, -91px, 0)
-      scale(.86);
-
-    opacity: 1;
-  }
-
-  54% {
-    transform:
-      translate3d(265px, -119px, 0)
-      scale(.79);
-
-    opacity: 1;
-  }
-
-  62% {
-    transform:
-      translate3d(350px, -145px, 0)
-      scale(.71);
-
-    opacity: 1;
-  }
-
-  70% {
-    transform:
-      translate3d(440px, -168px, 0)
-      scale(.63);
-
-    opacity: .95;
-  }
-
-  78% {
-    transform:
-      translate3d(530px, -188px, 0)
-      scale(.54);
-
-    opacity: .82;
-  }
-
-  86% {
-    transform:
-      translate3d(615px, -204px, 0)
-      scale(.45);
-
-    opacity: .60;
-  }
-
-  93% {
-    transform:
-      translate3d(685px, -215px, 0)
-      scale(.36);
-
-    opacity: .30;
-  }
-
-  100% {
-    transform:
-      translate3d(745px, -222px, 0)
-      scale(.28);
-
-    opacity: 0;
-  }
-}
-/* =====================================
    ACTUAL BALL
    ===================================== */
 
@@ -2338,60 +2215,94 @@ export default function AuthPageClient() {
            ===================================== */
 
         @media (max-width: 560px) {
+
           .starz-auth {
-            width: 100vw;
-            min-height: 100vh;
+            width: 100%;
             min-height: 100dvh;
-            margin-left: calc(50% - 50vw);
+            margin: 0;
+
+            display: flex;
+            flex-direction: column;
+
             overflow-x: hidden;
             overflow-y: auto;
+
             background: #06152d;
-            display: block;
-            padding-bottom: 8px;
+            padding-bottom: 0;
           }
 
+          /* HERO IMAGE */
           .cinematic-background {
-            inset: 0 0 auto 0;
-            width: 100vw;
-            height: 340px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+
+            width: 100%;
+            height: 430px;
+
             background-size: cover !important;
-            background-position: 27% center;
+            background-position: 34% center;
             background-repeat: no-repeat;
+
             animation: none;
           }
 
           .background-overlay {
-            inset: 0 0 auto 0;
-            width: 100vw;
-            height: 340px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+
+            width: 100%;
+            height: 430px;
+
             background:
               linear-gradient(
                 180deg,
-                rgba(3, 13, 35, .02) 0%,
-                rgba(3, 13, 35, .08) 68%,
-                rgba(3, 13, 35, .72) 100%
+                rgba(3, 13, 35, 0) 0%,
+                rgba(3, 13, 35, .03) 65%,
+                rgba(3, 13, 35, .30) 100%
               );
           }
 
+          /* LOGIN AREA */
           .auth-content {
+            position: relative;
+
             width: 100%;
             min-height: auto;
-            box-sizing: border-box;
+
+            display: flex;
             justify-content: center;
-            padding: 270px 12px 12px;
+            align-items: flex-start;
+
+            padding:
+              395px
+              14px
+              14px;
+
+            box-sizing: border-box;
           }
 
+          /* LOGIN CARD */
           .form-card {
             width: 100%;
-            max-width: 560px;
+            max-width: 520px;
+
             box-sizing: border-box;
-            padding: 20px 18px 18px;
-            border-radius: 24px;
+
+            padding:
+              20px
+              18px
+              18px;
+
+            border-radius: 26px;
           }
 
           .club-title {
-            margin-top: 0;
-            margin-bottom: 0;
+            margin: 0;
+
             font-size: 27px;
             line-height: 1.05;
             font-weight: 600;
@@ -2399,6 +2310,7 @@ export default function AuthPageClient() {
 
           .club-subtitle {
             margin-top: 7px;
+
             font-size: 13px;
             line-height: 1.3;
           }
@@ -2419,7 +2331,7 @@ export default function AuthPageClient() {
 
           .auth-form {
             margin-top: 16px;
-            gap: 14px;
+            gap: 13px;
           }
 
           .field > span {
@@ -2428,12 +2340,16 @@ export default function AuthPageClient() {
 
           .field input {
             margin-top: 6px;
-            padding: 11px 13px;
+
+            padding:
+              11px
+              13px;
+
             font-size: 16px;
           }
 
           .password-help {
-            margin-top: 6px;
+            margin-top: 5px;
             align-items: center;
           }
 
@@ -2447,8 +2363,12 @@ export default function AuthPageClient() {
 
           .submit-button {
             margin-top: 0;
-            padding: 12px 18px;
+
             min-height: 46px;
+
+            padding:
+              11px
+              18px;
           }
 
           .privacy-box {
@@ -2459,27 +2379,44 @@ export default function AuthPageClient() {
             margin-top: 12px;
           }
 
-          /* Small animated ball aligned to the bat in the mobile hero. */
+          /* =====================================
+             MOBILE BALL
+             ===================================== */
+
           .ball-orbit {
             display: block !important;
             position: absolute;
+
             left: 49%;
-            top: 151px;
+            top: 177px;
+
             width: 11px;
             height: 11px;
+
             z-index: 8;
             opacity: 1;
             pointer-events: none;
+
             will-change: transform, opacity;
             backface-visibility: hidden;
             transform: translateZ(0);
-            animation: mobileBallArc 3.8s linear infinite !important;
+
+            animation:
+              mobileBallArc
+              3.8s
+              linear
+              infinite !important;
           }
 
           .moving-ball {
             width: 100%;
             height: 100%;
-            animation: ballSpin .20s linear infinite !important;
+
+            animation:
+              ballSpin
+              .20s
+              linear
+              infinite !important;
           }
 
           .moving-ball span {
@@ -2492,55 +2429,98 @@ export default function AuthPageClient() {
           .light-trail {
             right: 5px;
             top: 4px;
+
             width: 42px;
             height: 2px;
+
             filter: blur(1.2px);
             opacity: .55;
           }
 
           @keyframes mobileBallArc {
-            0%, 15% {
-              transform: translate3d(0, 0, 0) scale(.70);
+            0%,
+            15% {
+              transform:
+                translate3d(0, 0, 0)
+                scale(.70);
+
               opacity: 0;
             }
+
             18% {
-              transform: translate3d(0, 0, 0) scale(.85);
+              transform:
+                translate3d(0, 0, 0)
+                scale(.85);
+
               opacity: 1;
             }
+
             21% {
-              transform: translate3d(2px, -2px, 0) scale(1);
+              transform:
+                translate3d(2px, -2px, 0)
+                scale(1);
+
               opacity: 1;
             }
+
             25% {
-              transform: translate3d(10px, -8px, 0) scale(1);
+              transform:
+                translate3d(10px, -8px, 0)
+                scale(1);
+
               opacity: 1;
             }
+
             35% {
-              transform: translate3d(36px, -24px, 0) scale(.94);
+              transform:
+                translate3d(36px, -24px, 0)
+                scale(.94);
+
               opacity: 1;
             }
+
             47% {
-              transform: translate3d(73px, -43px, 0) scale(.86);
+              transform:
+                translate3d(73px, -43px, 0)
+                scale(.86);
+
               opacity: 1;
             }
+
             60% {
-              transform: translate3d(112px, -59px, 0) scale(.75);
+              transform:
+                translate3d(112px, -59px, 0)
+                scale(.75);
+
               opacity: 1;
             }
+
             73% {
-              transform: translate3d(151px, -72px, 0) scale(.63);
+              transform:
+                translate3d(151px, -72px, 0)
+                scale(.63);
+
               opacity: .9;
             }
+
             86% {
-              transform: translate3d(187px, -82px, 0) scale(.48);
+              transform:
+                translate3d(187px, -82px, 0)
+                scale(.48);
+
               opacity: .6;
             }
+
             100% {
-              transform: translate3d(218px, -88px, 0) scale(.32);
+              transform:
+                translate3d(218px, -88px, 0)
+                scale(.32);
+
               opacity: 0;
             }
           }
         }
+
         /* =====================================
            ACCESSIBILITY
            ===================================== */
@@ -2566,3 +2546,5 @@ export default function AuthPageClient() {
     </main>
   );
 }
+
+
