@@ -2396,8 +2396,8 @@ export default function AuthPageClient() {
             display: block !important;
             position: absolute;
 
-            left: 39%;
-            top: 158px;
+            left: 38%;
+            top: 174px;
 
             width: 9px;
             height: 9px;
