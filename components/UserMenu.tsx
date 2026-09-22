@@ -354,12 +354,20 @@ export default function UserMenu() {
             z-50
             mt-2
             w-64
+            max-w-[calc(100vw-24px)]
             overflow-hidden
             rounded-xl
             border
             border-slate-200
             bg-white
             shadow-xl
+
+            max-[560px]:fixed
+            max-[560px]:left-3
+            max-[560px]:right-3
+            max-[560px]:top-auto
+            max-[560px]:w-auto
+            max-[560px]:max-w-none
           "
         >
           {/* PROFILE SUMMARY */}
@@ -572,3 +580,5 @@ function SignOutIcon() {
     </svg>
   );
 }
+
+

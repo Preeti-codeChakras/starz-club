@@ -101,6 +101,7 @@ export default function SchedulePage() {
   );
 
   const [message, setMessage] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   async function loadScheduleData() {
     setLoading(true);
@@ -480,6 +481,12 @@ export default function SchedulePage() {
     return members.filter((member) => memberIds.has(member.id));
   }
 
+  const sortedEvents = [...events].sort((a, b) => {
+    const aTime = new Date(a.starts_at).getTime();
+    const bTime = new Date(b.starts_at).getTime();
+    return sortOrder === "asc" ? aTime - bTime : bTime - aTime;
+  });
+
   const editingEvent = editingEventId
     ? events.find((event) => event.id === editingEventId) ?? null
     : null;
@@ -514,7 +521,7 @@ export default function SchedulePage() {
    <div className="mt-5">
   <Link
     href="/admin/arcl"
-    className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
+    className="inline-flex items-center gap-2 rounded-full bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-900"
   >
     🏏 View ARCL Schedule →
   </Link>
@@ -545,6 +552,42 @@ export default function SchedulePage() {
               </span>
             </div>
 
+            {!loading && events.length > 0 && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+  <span className="text-sm font-semibold text-blue-900">
+    Sort events by date
+  </span>
+               <select
+  aria-label="Sort by date"
+  value={sortOrder}
+  onChange={(event) =>
+    setSortOrder(event.target.value as "asc" | "desc")
+  }
+  className="
+    cursor-pointer
+    rounded-xl
+    border-2
+    border-blue-900
+    bg-blue-900
+    px-4
+    py-2.5
+    text-sm
+    font-semibold
+    text-white
+    shadow-md
+    outline-none
+    transition
+    hover:bg-blue-700
+    focus:ring-2
+    focus:ring-blue-300
+  "
+>
+  <option value="desc">📅 Latest first</option>
+  <option value="asc">📅 Earliest first</option>
+</select>
+              </div>
+            )}
+
             {loading && (
               <p className="mt-5 text-slate-600">
                 Loading events…
@@ -566,7 +609,7 @@ export default function SchedulePage() {
             )}
 
             <div className="mt-6 space-y-4">
-              {events.map((event) => (
+              {sortedEvents.map((event) => (
                 <article
                   key={event.id}
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
@@ -1283,6 +1326,7 @@ function convertToDateTimeInput(value: string) {
 
   return localDate.toISOString().slice(0, 16);
 }
+
 
 
 

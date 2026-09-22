@@ -173,6 +173,9 @@ export default function ArclAdminPage() {
   const [message, setMessage] =
     useState("");
 
+  const [sortOrder, setSortOrder] =
+    useState<"asc" | "desc">("desc");
+
   /*
    * Discover seasons directly from ARCL.
    *
@@ -772,6 +775,26 @@ export default function ArclAdminPage() {
     ) &&
     configuredTeams.length > 0;
 
+  const sortedMatches = [...matches].sort((a, b) => {
+    const dateCompare =
+      a.match_date.localeCompare(b.match_date);
+
+    if (dateCompare !== 0) {
+      return sortOrder === "asc"
+        ? dateCompare
+        : -dateCompare;
+    }
+
+    const timeCompare =
+      (a.start_time ?? "").localeCompare(
+        b.start_time ?? ""
+      );
+
+    return sortOrder === "asc"
+      ? timeCompare
+      : -timeCompare;
+  });
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-6xl">
@@ -1067,13 +1090,35 @@ export default function ArclAdminPage() {
                 </p>
               </div>
 
-              <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-                {matches.length}{" "}
-                match
-                {matches.length ===
-                1
-                  ? ""
-                  : "es"}
+              <div className="flex flex-wrap items-center justify-end gap-3">
+                {matches.length > 0 && (
+                  <select
+                    aria-label="Sort ARCL matches by date"
+                    value={sortOrder}
+                    onChange={(event) =>
+                      setSortOrder(
+                        event.target.value as "asc" | "desc"
+                      )
+                    }
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="asc">
+                      📅 Earliest first
+                    </option>
+                    <option value="desc">
+                      📅 Latest first
+                    </option>
+                  </select>
+                )}
+
+                <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+                  {matches.length}{" "}
+                  match
+                  {matches.length ===
+                  1
+                    ? ""
+                    : "es"}
+                </div>
               </div>
             </div>
           </div>
@@ -1099,7 +1144,7 @@ export default function ArclAdminPage() {
             </div>
           ) : (
             <div className="divide-y divide-slate-200">
-              {matches.map(
+              {sortedMatches.map(
                 (match) => (
                   <article
                     key={
@@ -1223,5 +1268,6 @@ export default function ArclAdminPage() {
     </main>
   );
 }
+
 
 
