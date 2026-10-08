@@ -81,6 +81,21 @@ const menuSections: MenuSection[] = [
   },
 
   {
+    title: "Leagues & Tournaments",
+    description:
+      "Create and manage independent leagues, registrations, temporary teams, and schedules.",
+    items: [
+      {
+        name: "Leagues & Tournaments",
+        icon: "🏆",
+        description:
+          "Manage league registrations, player pools, temporary teams, and schedules.",
+        href: "/leagues",
+      },
+    ],
+  },
+
+  {
     title: "Club Management",
     description:
       "Manage finances, club kits, receipts, and photos.",
@@ -403,5 +418,6 @@ export default function Home() {
     </main>
   );
 }
+
 
 
