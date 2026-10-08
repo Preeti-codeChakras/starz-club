@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import LeagueTeamBuilder from "@/components/LeagueTeamBuilder";
+import LeagueScheduleBuilder from "@/components/LeagueScheduleBuilder";
 
 type League = {
   id: string;
@@ -509,10 +511,20 @@ export default function LeagueWorkspacePage() {
           </section>
         )}
         {activeTab === "Teams" && (
-          <ComingSoon title="Temporary Teams" text="We will generate balanced temporary teams here without adding them to the permanent club Teams table." />
+          <LeagueTeamBuilder
+            leagueId={leagueId}
+            playersPerTeam={league.players_per_team}
+            canManage={canManage}
+            registrations={registrations}
+          />
         )}
         {activeTab === "Schedule" && (
-          <ComingSoon title="League Schedule" text="Round-robin and custom league schedule generation will be built here." />
+          <LeagueScheduleBuilder
+            leagueId={leagueId}
+            canManage={canManage}
+            leagueStart={league.league_start}
+            leagueEnd={league.league_end}
+          />
         )}
       </div>
     </main>
@@ -536,3 +548,5 @@ function ComingSoon({ title, text }: { title: string; text: string }) {
     </section>
   );
 }
+
+
