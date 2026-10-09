@@ -374,7 +374,7 @@ export default function AuthPageClient() {
     ) {
       const confirmationUrl =
         inviteToken
-          ? `${window.location.origin}/auth?invite=${encodeURIComponent(
+          ? `window.location.origin/auth?invite={encodeURIComponent(
               inviteToken
             )}&mode=login`
           : `${window.location.origin}/auth`;
@@ -852,6 +852,9 @@ export default function AuthPageClient() {
         </div>
 
       </section>
+
+      {/* Signature only; original login layout and styling unchanged */}
+      <CreatorSignature />
 
       {/* ========================================
           CSS
@@ -2556,4 +2559,71 @@ export default function AuthPageClient() {
   );
 }
 
+/** Plays once per page load; respects reduced-motion preferences. */
+function CreatorSignature() {
+  const signature = "Built with ❤️ by Preeti";
+  const characters = Array.from(signature);
+  const [length, setLength] = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduceMotion(query.matches);
+    if (query.matches) setLength(characters.length);
+  }, [characters.length]);
+
+  useEffect(() => {
+    if (reduceMotion || length >= characters.length) return;
+    const timer = window.setTimeout(() => setLength((value) => value + 1), 105);
+    return () => window.clearTimeout(timer);
+  }, [length, reduceMotion, characters.length]);
+
+  return (
+    <div className="creator-signature" aria-label={signature}>
+      <span aria-hidden="true">{characters.slice(0, length).join("")}</span>
+      <span className="creator-cursor" aria-hidden="true">|</span>
+      <style jsx>{`
+        .creator-signature {
+          position: absolute;
+          z-index: 12;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          max-width: calc(100% - 24px);
+          padding: 9px 16px;
+          border-radius: 999px;
+          background: rgba(6, 21, 45, .50);
+          color: #ffffff;
+          text-shadow: 0 1px 5px rgba(0, 0, 0, .7);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: .045em;
+          white-space: nowrap;
+          backdrop-filter: blur(5px);
+          pointer-events: none;
+        }
+        .creator-cursor {
+          display: inline-block;
+          margin-left: 2px;
+          animation: blink .85s steps(1, end) infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+        @media (max-width: 1023px) {
+          .creator-signature {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            transform: none;
+            align-self: center;
+            margin: 0 auto 24px;
+            flex-shrink: 0;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .creator-cursor { animation: none; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
