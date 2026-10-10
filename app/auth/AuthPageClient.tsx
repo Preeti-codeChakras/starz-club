@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   FormEvent,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import {
@@ -25,6 +26,39 @@ type MemberStatus = {
 };
 
 export default function AuthPageClient() {
+  const authPageRef = useRef<HTMLElement>(null);
+  const signatureAnchorRef = useRef<HTMLDivElement>(null);
+
+  // On short phone screens, gently reveal the bottom of the form and signature.
+  // This runs only once on initial mount and never while the user is typing.
+  useEffect(() => {
+    const mobile = window.matchMedia("(max-width: 560px)");
+    if (!mobile.matches) return;
+
+    const timer = window.setTimeout(() => {
+      if (document.activeElement instanceof HTMLInputElement) return;
+      const signature = signatureAnchorRef.current;
+      const page = authPageRef.current;
+      if (!signature || !page) return;
+
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+      const targetBottom = signature.getBoundingClientRect().bottom + 12;
+      const visibleBottom = window.innerHeight;
+      const delta = Math.max(0, targetBottom - visibleBottom);
+      if (delta < 4) return;
+
+      // Some mobile layouts scroll the main element; others scroll the document.
+      if (page.scrollHeight > page.clientHeight + 2) {
+        page.scrollTo({ top: Math.min(delta, page.scrollHeight - page.clientHeight), behavior });
+      } else {
+        window.scrollBy({ top: delta, behavior });
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const router =
     useRouter();
 
@@ -574,7 +608,7 @@ export default function AuthPageClient() {
   }
 
   return (
-    <main className="starz-auth">
+    <main ref={authPageRef} className="starz-auth">
 
       {/* ========================================
           FULL CINEMATIC BACKGROUND
@@ -854,13 +888,25 @@ export default function AuthPageClient() {
       </section>
 
       {/* Signature only; original login layout and styling unchanged */}
-      <CreatorSignature />
+      <div ref={signatureAnchorRef} className="signature-scroll-anchor">
+        <CreatorSignature />
+      </div>
 
       {/* ========================================
           CSS
           ======================================== */}
 
       <style jsx>{`
+
+        .signature-scroll-anchor {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          pointer-events: none;
+        }
 
         .starz-auth {
           position: relative;
@@ -2227,6 +2273,13 @@ export default function AuthPageClient() {
            ===================================== */
 
         @media (max-width: 560px) {
+          .signature-scroll-anchor {
+            position: relative;
+            bottom: auto;
+            width: 100%;
+            flex-shrink: 0;
+          }
+
 
           .starz-auth {
             width: 100%;
@@ -2626,4 +2679,5 @@ function CreatorSignature() {
     </div>
   );
 }
+
 
