@@ -29,33 +29,22 @@ export default function AuthPageClient() {
   const authPageRef = useRef<HTMLElement>(null);
   const signatureAnchorRef = useRef<HTMLDivElement>(null);
 
-  // On short phone screens, gently reveal the bottom of the form and signature.
-  // This runs only once on initial mount and never while the user is typing.
+  // Scroll the auth panel itself: the site's outer layout may lock body scrolling.
   useEffect(() => {
-    const mobile = window.matchMedia("(max-width: 560px)");
-    if (!mobile.matches) return;
-
+    if (!window.matchMedia("(max-width: 560px)").matches) return;
     const timer = window.setTimeout(() => {
+      const panel = authPageRef.current;
+      const anchor = signatureAnchorRef.current;
+      if (!panel || !anchor) return;
       if (document.activeElement instanceof HTMLInputElement) return;
-      const signature = signatureAnchorRef.current;
-      const page = authPageRef.current;
-      if (!signature || !page) return;
-
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
-      const targetBottom = signature.getBoundingClientRect().bottom + 12;
-      const visibleBottom = window.innerHeight;
-      const delta = Math.max(0, targetBottom - visibleBottom);
-      if (delta < 4) return;
-
-      // Some mobile layouts scroll the main element; others scroll the document.
-      if (page.scrollHeight > page.clientHeight + 2) {
-        page.scrollTo({ top: Math.min(delta, page.scrollHeight - page.clientHeight), behavior });
-      } else {
-        window.scrollBy({ top: delta, behavior });
-      }
-    }, 650);
-
+      const target = anchor.getBoundingClientRect().bottom
+        - panel.getBoundingClientRect().bottom + panel.scrollTop + 12;
+      panel.scrollTo({
+        top: Math.max(0, Math.min(target, panel.scrollHeight - panel.clientHeight)),
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant" : "smooth",
+      });
+    }, 1100);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -2278,19 +2267,20 @@ export default function AuthPageClient() {
             bottom: auto;
             width: 100%;
             flex-shrink: 0;
+            min-height: 58px;
           }
 
 
           .starz-auth {
             width: 100%;
             min-height: 100dvh;
+            height: auto;
             margin: 0;
 
             display: flex;
             flex-direction: column;
 
-            overflow-x: hidden;
-            overflow-y: auto;
+            overflow: visible;
 
             background: #06152d;
             padding-bottom: 0;
@@ -2606,6 +2596,27 @@ export default function AuthPageClient() {
 
         }
 
+        /* Mobile scrolling must work even when the parent app locks body scroll. */
+        @media (max-width: 560px) {
+          .starz-auth {
+            height: 100dvh !important;
+            min-height: 0 !important;
+            max-height: 100dvh !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+            display: block !important;
+          }
+          .auth-content {
+            flex-shrink: 0;
+          }
+          .signature-scroll-anchor {
+            position: relative !important;
+            min-height: 58px;
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+          }
+        }
       `}</style>
 
     </main>
