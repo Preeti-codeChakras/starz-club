@@ -6,6 +6,7 @@ import PendingApprovalsCard from "@/components/PendingApprovalsCard";
 import BirthdayBanner from "@/components/BirthdayBanner";
 import OnamBanner from "@/components/OnamBanner";
 import CurrentClubBrand from "@/components/CurrentClubBrand";
+import HomeSideSignature from "@/components/HomeSideSignature";
 
 type MenuItem = {
   name: string;
@@ -387,34 +388,8 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* DESKTOP SIGNATURE */}
-
-      <div
-        className="
-          fixed
-          right-6
-          top-1/2
-          hidden
-          -translate-y-1/2
-          select-none
-          text-sm
-          font-semibold
-          tracking-[0.25em]
-          text-slate-800
-          opacity-90
-          transition-all
-          duration-300
-
-          hover:text-blue-900
-          hover:opacity-100
-
-          xl:flex
-
-          [writing-mode:vertical-rl]
-        "
-      >
-        • Built with ❤️ by Preeti •
-      </div>
+      {/* Animated side credit without a background rail */}
+      <HomeSideSignature />
     </main>
   );
 }
