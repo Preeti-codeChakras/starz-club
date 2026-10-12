@@ -9,11 +9,11 @@ type Kind = "Income" | "Expense";
 type Member = {id:string; name:string; email:string | null};
 type Split = {transaction_id:string; member_id:string; amount_due:number; paid:boolean; paid_at:string|null; last_reminded_at:string|null};
 type Transaction = {id:string; transaction_type:Kind; category:string; amount:number; transaction_date:string; paid_by_or_received_from:string|null; payer_member_id:string|null; description:string; receipt_url:string|null; team_id:string|null; season_id:string|null; split_expense:boolean; participant_count:number|null; amount_per_person:number|null};
-type Form = {transaction_type:Kind; category:string; amount:string; transaction_date:string; paid_by_or_received_from:string; payer_member_id:string; description:string; split_expense:boolean; member_ids:string[]; receipt_url:string};
+type Form = {transaction_type:Kind; category:string; amount:string; transaction_date:string; paid_by_or_received_from:string; payer_member_id:string; description:string; split_expense:boolean; split_mode:"equal"|"custom"; custom_amounts:Record<string,string>; member_ids:string[]; receipt_url:string};
 const categories=["Registration Fee","Birthday","Ground Fee","Food","Equipment","Jerseys","Trophies","Sponsorship","Donation","Other"];
 const money=(n:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
 const today=()=>{const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)};
-const empty=():Form=>({transaction_type:"Expense",category:"Other",amount:"",transaction_date:today(),paid_by_or_received_from:"",payer_member_id:"",description:"",split_expense:false,member_ids:[],receipt_url:""});
+const empty=():Form=>({transaction_type:"Expense",category:"Other",amount:"",transaction_date:today(),paid_by_or_received_from:"",payer_member_id:"",description:"",split_expense:false,split_mode:"equal",custom_amounts:{},member_ids:[],receipt_url:""});
 const input="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900";
 function amounts(total:number, ids:string[]):Record<string,number>{const cents=Math.round(total*100), base=Math.floor(cents/ids.length), remainder=cents%ids.length; return Object.fromEntries(ids.map((id,i)=>[id,(base+(i<remainder?1:0))/100]));}
 
@@ -27,7 +27,7 @@ function ReceiptThumbnail({
   const [imageFailed, setImageFailed] = useState(false);
   const cleanPath = receiptPath.split("?")[0].toLowerCase();
   const isPdf = cleanPath.endsWith(".pdf");
-  const isImage = /\\.(jpg|jpeg|png|webp|gif|avif)$/.test(cleanPath);
+  const isImage = /\.(jpg|jpeg|png|webp|gif|avif)$/.test(cleanPath);
   const previewUrl = receiptPath.startsWith("http://") || receiptPath.startsWith("https://")
     ? receiptPath
     : supabase.storage.from("finance-receipts").getPublicUrl(receiptPath).data.publicUrl;
@@ -98,17 +98,22 @@ export default function FinancePage(){
  const totals=useMemo(()=>transactions.reduce((a,t)=>{if(t.transaction_type==="Income")a.income+=Number(t.amount);else a.expenses+=Number(t.amount);return a},{income:0,expenses:0}),[transactions]);
  const shown=transactions.filter(t=>(filter==="All"||t.transaction_type===filter)&&[t.description,t.category,t.paid_by_or_received_from??"",...(splits.filter(s=>s.transaction_id===t.id).map(s=>memberName(s.member_id)))].join(" ").toLowerCase().includes(search.toLowerCase()));
  const txSplits=(id:string)=>splits.filter(s=>s.transaction_id===id);
+ const splitCents=(value:string):number|null=>{if(!/^\d+(?:\.\d{1,2})?$/.test(value.trim()))return null;const cents=Math.round(Number(value)*100);return Number.isSafeInteger(cents)&&cents>=0?cents:null};
+ const customTotalCents=form.member_ids.reduce((sum,id)=>sum+(splitCents(form.custom_amounts[id]??"")??0),0);
+ const billCents=Math.round(Number(form.amount||0)*100);
+ const customValid=form.member_ids.length>0&&form.member_ids.every(id=>splitCents(form.custom_amounts[id]??"")!==null)&&customTotalCents===billCents;
  const reset=()=>{setForm(empty());setEditing(null);setFile(null);setFileKey(k=>k+1);setMemberSearch("");setPayerSearch("");setPayerOpen(false);setSplitOpen(false)};
- function edit(t:Transaction){setEditing(t.id);setForm({transaction_type:t.transaction_type,category:t.category,amount:String(t.amount),transaction_date:t.transaction_date,paid_by_or_received_from:t.paid_by_or_received_from??"",payer_member_id:t.payer_member_id??"",description:t.description,split_expense:t.split_expense,member_ids:txSplits(t.id).map(s=>s.member_id),receipt_url:t.receipt_url??""});setFile(null);setFileKey(k=>k+1);setPayerOpen(false);setSplitOpen(false);window.scrollTo({top:0,behavior:"smooth"});}
+ function edit(t:Transaction){setEditing(t.id);setForm({transaction_type:t.transaction_type,category:t.category,amount:String(t.amount),transaction_date:t.transaction_date,paid_by_or_received_from:t.paid_by_or_received_from??"",payer_member_id:t.payer_member_id??"",description:t.description,split_expense:t.split_expense,split_mode:(()=>{const ss=txSplits(t.id);if(!ss.length)return "equal";const expected=amounts(Number(t.amount),ss.map(s=>s.member_id));return ss.every(s=>Math.round(Number(s.amount_due)*100)===Math.round(expected[s.member_id]*100))?"equal":"custom"})(),custom_amounts:Object.fromEntries(txSplits(t.id).map(s=>[s.member_id,Number(s.amount_due).toFixed(2)])),member_ids:txSplits(t.id).map(s=>s.member_id),receipt_url:t.receipt_url??""});setFile(null);setFileKey(k=>k+1);setPayerOpen(false);setSplitOpen(false);window.scrollTo({top:0,behavior:"smooth"});}
  async function save(e:FormEvent){e.preventDefault();if(!manager||busy)return;const amount=Number(form.amount);if(!Number.isFinite(amount)||amount<=0||!form.description.trim()||!form.transaction_date){setMessage("Please enter a valid amount, date and description.");return}
   const isSplit=form.transaction_type==="Expense"&&form.split_expense;
   if(isSplit&&!form.member_ids.length){setMessage("Select at least one member to split this expense.");return}
   if(isSplit&&new Set(form.member_ids).size!==form.member_ids.length){setMessage("Duplicate members selected.");return}
+  if(isSplit&&form.split_mode==="custom"&&!customValid){setMessage("Custom amounts must be valid dollar amounts and add up exactly to the total bill.");return}
   setBusy(true);setMessage("");let path=form.receipt_url;let newUpload="";
   try{
    if(file){path=await uploadFinanceReceipt(file);newUpload=path;}
    const count=isSplit?form.member_ids.length:null;
-   const data={transaction_type:form.transaction_type,category:form.category,amount,transaction_date:form.transaction_date,paid_by_or_received_from:form.payer_member_id?memberName(form.payer_member_id):(form.paid_by_or_received_from.trim()||null),payer_member_id:form.payer_member_id||null,description:form.description.trim(),receipt_url:path||null,team_id:null,season_id:season?.id??null,split_expense:isSplit,participant_count:count,amount_per_person:count?Math.round(amount/count*100)/100:null};
+   const data={transaction_type:form.transaction_type,category:form.category,amount,transaction_date:form.transaction_date,paid_by_or_received_from:form.payer_member_id?memberName(form.payer_member_id):(form.paid_by_or_received_from.trim()||null),payer_member_id:form.payer_member_id||null,description:form.description.trim(),receipt_url:path||null,team_id:null,season_id:season?.id??null,split_expense:isSplit,participant_count:count,amount_per_person:count&&form.split_mode==="equal"?Math.round(amount/count*100)/100:null};
    let id=editing;
    if(editing){const {error}=await supabase.from("finance_transactions").update(data).eq("id",editing);if(error)throw error;}
    else {const {data:created,error}=await supabase.from("finance_transactions").insert(data).select("id").single();if(error)throw error;id=created.id;}
@@ -116,7 +121,7 @@ export default function FinancePage(){
    const existing=txSplits(id);const chosen=new Set(isSplit?form.member_ids:[]);
    const removed=existing.filter(s=>!chosen.has(s.member_id));
    if(removed.length){const {error}=await supabase.from("finance_expense_members").delete().eq("transaction_id",id).in("member_id",removed.map(s=>s.member_id));if(error)throw error;}
-   if(isSplit){const dues=amounts(amount,form.member_ids);const rows=form.member_ids.map(member_id=>{const old=existing.find(s=>s.member_id===member_id);return {transaction_id:id,member_id,amount_due:dues[member_id],paid:old?.paid??false,paid_at:old?.paid_at??null,last_reminded_at:old?.last_reminded_at??null};});const {error}=await supabase.from("finance_expense_members").upsert(rows,{onConflict:"transaction_id,member_id"});if(error)throw error;}
+   if(isSplit){const dues=form.split_mode==="custom"?Object.fromEntries(form.member_ids.map(member_id=>[member_id,(splitCents(form.custom_amounts[member_id]??"")??0)/100])):amounts(amount,form.member_ids);const rows=form.member_ids.map(member_id=>{const old=existing.find(s=>s.member_id===member_id);return {transaction_id:id,member_id,amount_due:dues[member_id],paid:old?.paid??false,paid_at:old?.paid_at??null,last_reminded_at:old?.last_reminded_at??null};});const {error}=await supabase.from("finance_expense_members").upsert(rows,{onConflict:"transaction_id,member_id"});if(error)throw error;}
    reset();await load();setMessage("Transaction and member shares saved successfully.");
   }catch(err){setMessage(`Save failed: ${err instanceof Error?err.message:String(err)}. If the transaction saved but shares failed, edit it and retry.`);if(newUpload&&!newUpload.startsWith("http"))await supabase.storage.from("finance-receipts").remove([newUpload]);}
   finally{setBusy(false)}
@@ -124,7 +129,7 @@ export default function FinancePage(){
  async function mark(t:Transaction,s:Split){if(!manager)return;const paid=!s.paid;const {error}=await supabase.from("finance_expense_members").update({paid,paid_at:paid?new Date().toISOString():null}).eq("transaction_id",t.id).eq("member_id",s.member_id);if(error)setMessage(error.message);else await load();}
  async function remove(t:Transaction){if(!manager||!window.confirm(`Delete ${t.description}?`))return;const {error}=await supabase.from("finance_transactions").delete().eq("id",t.id);if(error)setMessage(error.message);else{if(editing===t.id)reset();await load();setMessage("Transaction deleted.")}}
  async function remind(t:Transaction){const ids=(selected[t.id]??[]).filter(id=>txSplits(t.id).some(s=>s.member_id===id&&!s.paid));if(!ids.length)return;setSending(t.id);setMessage("");try{const {data:{session}}=await supabase.auth.getSession();if(!session)throw new Error("Please sign in again");const res=await fetch("/api/finance/reminders",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${session.access_token}`},body:JSON.stringify({transactionId:t.id,memberIds:ids})});const result=await res.json();if(!res.ok)throw new Error(result.error??"Reminder failed");setMessage(`Sent ${result.sent} reminder(s). ${result.failed?.length?`Failed: ${result.failed.join(", ")}`:""}`);setSelected(prev=>({...prev,[t.id]:[]}));await load();}catch(err){setMessage(err instanceof Error?err.message:String(err))}finally{setSending(null)}}
- const preview=form.member_ids.length&&Number(form.amount)>0?amounts(Number(form.amount),form.member_ids):{};
+ const preview=form.member_ids.length&&Number(form.amount)>0?(form.split_mode==="custom"?Object.fromEntries(form.member_ids.map(id=>[id,(splitCents(form.custom_amounts[id]??"")??0)/100])):amounts(Number(form.amount),form.member_ids)):{};
  if(loadingProfile)return <main className="p-8">Checking account…</main>;
  if(!profile)return <main className="p-8"><Link href="/auth" className="text-blue-800 underline">Sign in to view finances</Link></main>;
  return <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900"><div className="mx-auto max-w-7xl"><Link href="/" className="text-blue-700">← Back to Home</Link><h1 className="mt-5 text-3xl font-bold text-blue-900">💰 Club Finances</h1><p className="mt-2 text-slate-600">Track transactions, receipts, member balances and reminders{season?` · ${season.name}`:""}.</p>
@@ -178,12 +183,26 @@ export default function FinancePage(){
       </div>
       <button type="button" className="mt-3 w-full rounded-lg bg-blue-900 px-4 py-2 text-sm text-white" onClick={() => {setSplitOpen(false);setMemberSearch("")}}>Done</button>
     </div>}
-    {form.member_ids.length > 0 && <p className="text-sm text-slate-600">Total {money(Number(form.amount)||0)} · {form.member_ids.length} shares: {Object.values(preview).map(n=>money(n)).join(" / ")}</p>}
+    {form.member_ids.length > 0 && <div className="space-y-3 rounded-lg border border-blue-200 bg-white p-3">
+      <p className="text-sm font-semibold text-blue-900">How should this bill be split?</p>
+      <div className="flex flex-wrap gap-4 text-sm">
+       <label className="flex items-center gap-2"><input type="radio" name="split-mode" checked={form.split_mode==="equal"} onChange={()=>setForm(f=>({...f,split_mode:"equal"}))}/>Equal split</label>
+       <label className="flex items-center gap-2"><input type="radio" name="split-mode" checked={form.split_mode==="custom"} onChange={()=>setForm(f=>({...f,split_mode:"custom",custom_amounts:Object.fromEntries(f.member_ids.map(id=>[id,f.custom_amounts[id]??String(amounts(Number(f.amount)||0,f.member_ids)[id]??0)]))}))}/>Custom amounts</label>
+      </div>
+      {form.split_mode==="custom"?<>
+       <p className="text-xs text-slate-600">Enter what each person owes. The total must match the bill exactly.</p>
+       {form.member_ids.map(id=><label key={id} className="flex items-center justify-between gap-3 text-sm"><span className="min-w-0 flex-1 truncate">{memberName(id)}</span><span className="flex items-center gap-1">$<input aria-label={`Amount for ${memberName(id)}`} type="number" min="0" step="0.01" required className="w-28 rounded-lg border border-slate-300 p-2" value={form.custom_amounts[id]??""} onChange={e=>setForm(f=>({...f,custom_amounts:{...f.custom_amounts,[id]:e.target.value}}))}/></span></label>)}
+       <div className={`rounded-lg p-3 text-sm ${customValid?"bg-green-50 text-green-800":"bg-amber-50 text-amber-900"}`}>
+        Assigned {money(customTotalCents/100)} of {money(Number(form.amount)||0)} · {customValid?"Amounts match ✓":`Difference ${money(Math.abs(billCents-customTotalCents)/100)} ${customTotalCents>billCents?"over":"remaining"}`}
+       </div>
+      </>:<p className="text-sm text-slate-600">Total {money(Number(form.amount)||0)} · {form.member_ids.length} shares: {Object.values(preview).map(n=>money(n)).join(" / ")}</p>}
+     </div>}
   </div>}
  </div>}
  <label className="text-sm font-medium">Description<textarea required rows={3} className={input} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></label><label className="text-sm font-medium">Receipt (JPG, PNG, WebP, PDF; max 10 MB)<input key={fileKey} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className={input} onChange={e=>{const f=e.target.files?.[0]??null;if(f&&(f.size>10485760||!["image/jpeg","image/png","image/webp","application/pdf"].includes(f.type))){setMessage("Unsupported receipt or file larger than 10 MB.");setFile(null);setFileKey(k=>k+1);}else setFile(f)}}/></label>{file&&<p className="text-sm">Selected: {file.name}</p>}{form.receipt_url&&<button type="button" className="text-left text-sm text-blue-700 underline" onClick={()=>void viewFinanceReceipt(form.receipt_url).catch(e=>setMessage(e.message))}>View existing receipt</button>}
  <div className="flex gap-2"><button disabled={busy} type="submit" className="rounded bg-blue-900 px-5 py-3 text-white disabled:opacity-50">{busy?"Saving…":editing?"Update transaction":"Add transaction"}</button>{editing&&<button type="button" className="rounded border px-4 py-3" onClick={reset}>Cancel</button>}</div></form></section>}</div></div></main>;
 }
+
 
 
 
