@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import StarzDoodleLayer from "./StarzDoodleLayer";
+import useStarzUnread from "@/components/useStarzUnread";
+import StarzUnreadBadge from "@/components/StarzUnreadBadge";
 
 type Member = { user_id: string; name: string; club_id: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; kind?: string };
@@ -43,7 +45,7 @@ export default function StarzMessengerPage() {
  const [memberSearch, setMemberSearch] = useState("");
  const [cooldown, setCooldown] = useState(0);
  const [now, setNow] = useState(Date.now());
- const [unread, setUnread] = useState<Record<string, number>>({});
+ const { counts: unread, markRead, refresh: refreshUnread } = useStarzUnread();
  const bottomRef = useRef<HTMLDivElement>(null);
  const seenMessages = useRef(new Set<string>());
  const seenEffects = useRef(new Set<string>());
@@ -56,7 +58,7 @@ export default function StarzMessengerPage() {
  const soundRef = useRef(soundOn);
  const vibrationRef = useRef(vibrationOn);
  const reduceRef = useRef(reduceMotion);
- useEffect(() => { setDoodleMode(false); activeRoomRef.current = room; roomRef.current = room; seenMessages.current.clear(); setMessages([]); setAnimation(null); setUnread(p => ({ ...p, [room]: 0 })); }, [room]);
+ useEffect(() => { setDoodleMode(false); activeRoomRef.current = room; roomRef.current = room; seenMessages.current.clear(); setMessages([]); setAnimation(null);  }, [room]);
  useEffect(() => { selfRef.current = self; }, [self]);
  useEffect(() => { chatRef.current = chats; }, [chats]);
  useEffect(() => { soundRef.current = soundOn; }, [soundOn]);
@@ -218,12 +220,13 @@ export default function StarzMessengerPage() {
    else {
     const list = ((history.data ?? []) as Message[]).reverse();
     seenMessages.current = new Set(list.map(m => m.id)); setMessages(list);
+     if (document.visibilityState === "visible") void markRead(target);
    }
    if (!setting.error && setting.data && themes.includes(setting.data.theme as Theme)) setTheme(setting.data.theme as Theme);
    else setTheme("classic");
   }
   void loadRoom(); return () => { cancelled = true; };
- }, [self, room]);
+ }, [self, room, markRead]);
 
  // Subscribe at club level, but only show private content for the active conversation.
  useEffect(() => {
@@ -232,13 +235,13 @@ export default function StarzMessengerPage() {
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "club_chat_messages", filter: `club_id=eq.${self.club_id}` }, payload => {
     const m = payload.new as Message;
     if (m.kind === "buzz") return; // Legacy v1 buzz events are historical; new effects use starz_chat_effects.
-    if (activeRoomRef.current === "group") append(m);
-    else setUnread(p => ({ ...p, group: (p.group ?? 0) + (m.sender_user_id === self.user_id ? 0 : 1) }));
+    if (activeRoomRef.current === "group") { append(m); if (document.visibilityState === "visible") void markRead("group"); }
+    else void refreshUnread();
    })
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "starz_private_messages" }, payload => {
     const m = payload.new as Message & { chat_id: string };
-    if (activeRoomRef.current === m.chat_id) append(m);
-    else setUnread(p => ({ ...p, [m.chat_id]: (p[m.chat_id] ?? 0) + (m.sender_user_id === self.user_id ? 0 : 1) }));
+    if (activeRoomRef.current === m.chat_id) { append(m); if (document.visibilityState === "visible") void markRead(m.chat_id); }
+    else void refreshUnread();
    })
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "starz_chat_effects", filter: `club_id=eq.${self.club_id}` }, payload => {
     const e = payload.new as Effect;
@@ -257,7 +260,7 @@ export default function StarzMessengerPage() {
    })
    .subscribe();
   return () => { void supabase.removeChannel(channel); };
- }, [self, append, showEffect]);
+ }, [self, append, showEffect, refreshUnread]);
  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages.length, room]);
  useEffect(() => () => { if (animationTimer.current) clearTimeout(animationTimer.current); void audioRef.current?.close(); }, []);
 
@@ -298,7 +301,7 @@ export default function StarzMessengerPage() {
    const updated = data as ChatVisibility;
    visibilityRef.current = { ...visibilityRef.current, [chatId]: updated };
    setVisibility(p => ({ ...p, [chatId]: updated }));
-   setUnread(p => ({ ...p, [chatId]: 0 }));
+   void refreshUnread();
    if (roomRef.current === chatId) setRoom("group");
    setChatMenu(null);
   }
@@ -353,7 +356,7 @@ export default function StarzMessengerPage() {
      {chats.filter(c => !visibility[c.id]?.hidden).map(c => {
        const other = members.find(m => m.user_id === (c.user_a === self.user_id ? c.user_b : c.user_a));
        return <div key={c.id} className="relative mb-1 flex items-center gap-1">
-        <button type="button" onClick={() => { setRoom(c.id); setChatMenu(null); }} className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 {other?.name ?? "Member"} {unread[c.id] ? `(${unread[c.id]})` : ""}</button>
+        <button type="button" onClick={() => { setRoom(c.id); setChatMenu(null); }} className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 <span className={unread[c.id] ? "font-bold" : ""}>{other?.name ?? "Member"}</span></button><StarzUnreadBadge count={unread[c.id] ?? 0} />
         <button type="button" aria-label={`Options for ${other?.name ?? "private chat"}`} aria-expanded={chatMenu === c.id} onClick={() => setChatMenu(v => v === c.id ? null : c.id)} className="rounded-lg border px-2 py-2 text-slate-700" >⋮</button>
         {chatMenu === c.id && <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-white p-1 shadow-xl">
          <button type="button" disabled={busy} onClick={() => void deletePrivateChat(c.id)} className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">🗑 Delete for me</button>
@@ -408,5 +411,6 @@ export default function StarzMessengerPage() {
   `}</style>
  </main>;
 }
+
 
 

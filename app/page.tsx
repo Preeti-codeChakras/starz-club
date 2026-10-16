@@ -1,4 +1,5 @@
 import Link from "next/link";
+import StarzChatHomeLink from "@/components/StarzChatHomeLink";
 import UserMenu from "@/components/UserMenu";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import ProfileCompletionWarning from "@/components/ProfileCompleteWarning";
@@ -8,6 +9,7 @@ import OnamBanner from "@/components/OnamBanner";
 import CurrentClubBrand from "@/components/CurrentClubBrand";
 import HomeSideSignature from "@/components/HomeSideSignature";
 import StarzInstallBanner from "@/components/StarzInstallBanner";
+import StarzPhoneNotifications from "@/components/StarzPhoneNotifications";
 
 type MenuItem = {
   name: string;
@@ -179,29 +181,7 @@ export default function Home() {
               <div className="flex min-w-0 items-center justify-center [&>*]:max-w-full sm:block">
                 <ThemeSwitcher />
               </div>
-              <Link
-                href="/club-chat"
-                aria-label="Open Starz Messenger"
-                className="flex min-h-10 min-w-0 items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/15 px-2 py-2 text-xs font-semibold text-white transition hover:bg-white/25 sm:px-3 sm:text-sm"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="17"
-                  height="17"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  className="shrink-0"
-                >
-                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-                </svg>
-                <span className="sm:hidden">Chat</span>
-                <span className="hidden sm:inline">Messenger</span>
-              </Link>
+              <StarzChatHomeLink />
             </div>
           </div>
         </div>
@@ -212,6 +192,7 @@ export default function Home() {
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
         <StarzInstallBanner />
+        <StarzPhoneNotifications />
 
         {/* PROFILE COMPLETION WARNING */}
 
