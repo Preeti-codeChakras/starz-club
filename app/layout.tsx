@@ -1,9 +1,11 @@
-import type { Metadata } from "next";
+
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SessionTimeout from "@/components/SessionTimeout";
 import HomeButton from "@/components/HomeButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,10 +17,46 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// NEW: Mobile browser theme color
+export const viewport: Viewport = {
+  themeColor: "#1565c0",
+};
+
 export const metadata: Metadata = {
   title: "Starz Cricket Club WebApp",
   description:
     "Manage player availability, skills, and generate balanced cricket teams.",
+
+  // NEW: PWA and iPhone home-screen support
+  applicationName: "Starz Cricket Club",
+
+  appleWebApp: {
+    capable: true,
+    title: "Starz",
+    statusBarStyle: "default",
+  },
+
+  icons: {
+    icon: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
 
   openGraph: {
     title: "Starz Cricket Club WebApp",
@@ -72,22 +110,19 @@ export default function RootLayout({
         <div className="pride-strip" />
 
         <SessionTimeout />
-
+<ServiceWorkerRegistration />
         <div
-  className="
-    fixed
-    bottom-5
-    left-4
-    z-50
+          className="
+            fixed
+            bottom-5
+            left-4
+            z-50
 
-    sm:bottom-auto
-    sm:left-4
-    sm:top-5
-  "
->
-
-</div>
-
+            sm:bottom-auto
+            sm:left-4
+            sm:top-5
+          "
+        ></div>
 
         {children}
 
