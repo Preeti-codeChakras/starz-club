@@ -34,7 +34,7 @@ export default function StarzMessengerPage() {
  const [busy, setBusy] = useState(false);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState("");
- const [soundOn, setSoundOn] = useState(false);
+ const [soundOn, setSoundOn] = useState(true);
  const [vibrationOn, setVibrationOn] = useState(true);
  const [vibrationSupported, setVibrationSupported] = useState(false);
  const [reduceMotion, setReduceMotion] = useState(false);
