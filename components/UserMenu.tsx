@@ -44,6 +44,26 @@ export default function UserMenu() {
   const [menuOpen, setMenuOpen] =
     useState(false);
 
+  const [chatAlertsOn, setChatAlertsOn] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setChatAlertsOn(localStorage.getItem("starz-chat-alerts") === "true");
+    sync();
+    window.addEventListener("starz-chat-alerts-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("starz-chat-alerts-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  function toggleChatAlerts() {
+    const next = !chatAlertsOn;
+    localStorage.setItem("starz-chat-alerts", String(next));
+    setChatAlertsOn(next);
+    window.dispatchEvent(new Event("starz-chat-alerts-changed"));
+  }
+
   async function loadCurrentUser() {
     setLoading(true);
     setHasPlayerStats(false);
@@ -228,7 +248,7 @@ export default function UserMenu() {
 
   if (loading) {
     return (
-      <div className="text-sm text-blue-100">
+      <div className="flex h-10 w-full items-center justify-center whitespace-nowrap text-xs text-blue-100 sm:h-auto sm:w-auto sm:text-sm">
         Checking account…
       </div>
     );
@@ -238,9 +258,10 @@ export default function UserMenu() {
     return (
       <Link
         href="/auth"
-        className="rounded-lg border border-white/30 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/20"
+        className="flex h-10 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-white/30 bg-white/10 px-1.5 text-xs font-medium text-white transition hover:bg-white/20 sm:h-auto sm:w-auto sm:px-4 sm:py-2 sm:text-sm"
       >
-        Sign In
+        <span className="sm:hidden"><UserIcon /></span>
+        <span>Sign In</span>
       </Link>
     );
   }
@@ -248,7 +269,7 @@ export default function UserMenu() {
   return (
     <div
       ref={menuRef}
-      className="relative"
+      className="relative w-full min-w-0 sm:w-auto"
     >
       {/* USER MENU BUTTON */}
       <button
@@ -262,15 +283,27 @@ export default function UserMenu() {
         className="
           group
           flex
+          h-10
+          w-full
+          min-w-0
           items-center
-          gap-3
-          rounded-xl
+          justify-center
+          gap-1
+          whitespace-nowrap
+          rounded-lg
+          sm:h-auto
+          sm:w-auto
+          sm:justify-start
+          sm:gap-3
+          sm:rounded-xl
           border
           border-white/20
           bg-white/10
-          px-3
-          py-2
+          px-1.5
+          py-1
           text-left
+          sm:px-3
+          sm:py-2
           transition-all
           duration-200
 
@@ -284,9 +317,11 @@ export default function UserMenu() {
             src={getPhotoUrl()!}
             alt={`${getMemberName()} profile`}
             className="
-              h-10
-              w-10
+              h-5
+              w-5
               shrink-0
+              sm:h-10
+              sm:w-10
               rounded-lg
               border
               border-white/25
@@ -297,9 +332,11 @@ export default function UserMenu() {
           <div
             className="
               flex
-              h-10
-              w-10
+              h-5
+              w-5
               shrink-0
+              sm:h-10
+              sm:w-10
               items-center
               justify-center
               rounded-lg
@@ -314,7 +351,8 @@ export default function UserMenu() {
         )}
 
         {/* NAME + ROLE */}
-        <div className="min-w-0">
+        <span className="text-xs font-semibold text-white sm:hidden">Profile</span>
+        <div className="hidden min-w-0 sm:block">
           <p className="max-w-36 truncate text-sm font-semibold text-white">
             {getMemberName()}
           </p>
@@ -329,7 +367,7 @@ export default function UserMenu() {
           viewBox="0 0 20 20"
           fill="none"
           aria-hidden="true"
-          className={`ml-1 h-4 w-4 text-blue-100 transition-transform duration-200 ${
+          className={`hidden ml-1 h-4 w-4 text-blue-100 sm:block transition-transform duration-200 ${
             menuOpen
               ? "rotate-180"
               : ""
@@ -365,7 +403,7 @@ export default function UserMenu() {
             max-[560px]:fixed
             max-[560px]:left-3
             max-[560px]:right-3
-            max-[560px]:top-auto
+            max-[560px]:top-40
             max-[560px]:w-auto
             max-[560px]:max-w-none
           "
@@ -447,6 +485,23 @@ export default function UserMenu() {
   </div>
 )}
 
+
+            {/* CHAT ALERTS — stored in this browser */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={chatAlertsOn}
+              onClick={toggleChatAlerts}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                {chatAlertsOn ? "🔔" : "🔕"}
+              </span>
+              <span className="flex-1">Chat Alerts</span>
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${chatAlertsOn ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
+                {chatAlertsOn ? "On" : "Off"}
+              </span>
+            </button>
 
             {/* SIGN OUT */}
             <button
@@ -580,5 +635,6 @@ function SignOutIcon() {
     </svg>
   );
 }
+
 
 
