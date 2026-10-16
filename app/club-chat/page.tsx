@@ -14,7 +14,7 @@ type PrivateChat = { id: string; club_id: string; user_a: string; user_b: string
 type Effect = { id: string; club_id: string; chat_id: string | null; sender_user_id: string; sender_name: string; effect: string; created_at: string };
 type Theme = "classic" | "hearts" | "stars" | "rainbow" | "stadium";
 const themes: Theme[] = ["classic", "hearts", "stars", "rainbow", "stadium"];
-const effects = [{ id: "buzz", label: "⚡ BUZZ" }, { id: "hearts", label: "❤️ Hearts" }, { id: "punch", label: "🥊 POW" }, { id: "kiss", label: "💋 Kiss" }, { id: "confetti", label: "🎉 Confetti" }, { id: "cricket", label: "🏏 SIX!" }, { id: "four", label: "🏏 FOUR!" }, { id: "fireworks", label: "🎆 Fireworks" }, { id: "laugh", label: "😂 Laugh" }, { id: "clap", label: "👏 Clap" }];
+const effects = [{ id: "buzz", label: "⚡ BUZZ" }, { id: "hearts", label: "❤️ Hearts" }, { id: "punch", label: "🥊 POW" }, { id: "kiss", label: "💋 Kiss" }, { id: "confetti", label: "🎉 Confetti" }, { id: "cricket", label: "🏏 SIX!" }, { id: "four", label: "🏏 FOUR!" }, { id: "fireworks", label: "🎆 Fireworks" }, { id: "laugh", label: "😂 Laugh" }, { id: "clap", label: "👏 Clap" }, { id: "birthday", label: "🎂 Happy Birthday" }];
 const wallpapers: Record<Theme, string> = {
  classic: "bg-white", hearts: "bg-rose-50", stars: "bg-indigo-950", rainbow: "bg-gradient-to-br from-pink-100 via-sky-100 to-amber-100", stadium: "bg-gradient-to-b from-sky-100 via-green-100 to-emerald-300"
 };
@@ -81,6 +81,7 @@ export default function StarzMessengerPage() {
   punch: "/sounds/starz-messenger/punch.mp3",
   four: "/sounds/starz-messenger/four.mp3",
   cricket: "/sounds/starz-messenger/six.mp3",
+  birthday: "/sounds/starz-messenger/birthday.mp3",
  };
  const playSound = useCallback((effect: string) => {
   if (!soundRef.current) return;
@@ -251,7 +252,7 @@ export default function StarzMessengerPage() {
  // Subscribe at club level, but only show private content for the active conversation.
  useEffect(() => {
   if (!self) return;
-  const channel = supabase.channel(`starz-messenger-${self.club_id}-${self.user_id}`)
+  const channel = supabase.channel(`starz-messenger-self.clubid-{self.user_id}`)
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "club_chat_messages", filter: `club_id=eq.${self.club_id}` }, payload => {
     const m = payload.new as Message;
     if (m.kind === "buzz") return; // Legacy v1 buzz events are historical; new effects use starz_chat_effects.
@@ -360,7 +361,7 @@ export default function StarzMessengerPage() {
  const title = room === "group" ? "🏏 Club Group Chat" : `💬 ${partner?.name ?? "Private Chat"}`;
  const dark = theme === "stars";
  const seconds = Math.max(0, Math.ceil((cooldown - now) / 1000));
- const symbols: Record<string,string[]> = { hearts:["❤️","💗","💕","💖","❤️","💞"], punch:["🥊","💥","POW!"], kiss:["💋","😘","💖"], confetti:["🎊","🎉","✨","🎈"], cricket:["🏏","🏏","💥","SIX!"], four:["🏏","🏃","💨","FOUR!"], fireworks:["🎆","🎇","✨"], laugh:["😂","🤣","😆"], clap:["👏","👏","🙌"], buzz:["⚡","BUZZ!","⚡"] };
+ const symbols: Record<string,string[]> = { hearts:["❤️","💗","💕","💖","❤️","💞"], punch:["🥊","💥","POW!"], kiss:["💋","😘","💖"], confetti:["🎊","🎉","✨","🎈"], cricket:["🏏","🏏","💥","SIX!"], four:["🏏","🏃","💨","FOUR!"], fireworks:["🎆","🎇","✨"], laugh:["😂","🤣","😆"], clap:["👏","👏","🙌"], birthday:["🎂","🎉","🥳","🎁","🎈"], buzz:["⚡","BUZZ!","⚡"] };
  return <main className="min-h-[100dvh] bg-gradient-to-b from-blue-50 via-slate-50 to-white px-2 py-3 text-slate-900 sm:px-6">
   <div className="mx-auto max-w-6xl">
    <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-blue-950 px-5 py-4 text-white">
@@ -402,7 +403,7 @@ export default function StarzMessengerPage() {
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-blue-950">{title}</h2><label className="text-sm">Shared background <select value={theme} disabled={busy} onChange={e => void changeTheme(e.target.value as Theme)} className="ml-2 rounded-lg border bg-white p-2">{themes.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></label></div>
      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
      <div className={`relative h-[min(65dvh,620px)] min-h-[360px] overflow-hidden rounded-xl border ${wallpapers[theme]}`}>
-      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`${(i*17+5)%95}%`,fontSize:`${12+(i%4)*5}px`,animationDuration:`${10+(i%5)*2}s`,animationDelay:`${-i*1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
+      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`${(i * 17 + 5) % 95}%`,fontSize:`${12 + (i % 4) * 5}px`,animationDuration:`${10 + (i % 5) * 2}s`,animationDelay:`${-i * 1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
       <StarzDoodleLayer clubId={self.club_id} roomId={room} userId={self.user_id} enabled={doodleMode} />
       {theme === "stars" && <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40" style={{backgroundImage:"radial-gradient(white 1px, transparent 1px)",backgroundSize:"32px 32px"}} />}
       <div className={`relative z-10 h-full overflow-y-auto p-3 sm:p-4 ${doodleMode ? "pointer-events-none" : ""}`} aria-label={title}>
@@ -411,7 +412,7 @@ export default function StarzMessengerPage() {
       </div>
       {animation?.effect === "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-label={`${animation.sender_name} sent hearts`}>
        <span className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-rose-700 shadow-sm">{animation.sender_name} sent ❤️ Hearts</span>
-       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`${animation.id}-heart-${i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`${14+(i*7)%23}px`,animationDelay:`${(i%13)*0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
+       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`${animation.id}-heart-${i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`${14 + (i * 7) % 23}px`,animationDelay:`${(i % 13) * 0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
       </div>}
       {animation && animation.effect !== "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"><div className={`rounded-3xl bg-white/85 px-5 py-4 text-center shadow-xl ${!reduceMotion ? "magic-pop" : ""}`}><p className="text-sm font-bold text-blue-950">{animation.sender_name} sent {labelForEffect(animation.effect)}</p><div className="relative mt-3 flex min-h-20 items-center justify-center gap-3 text-4xl">{(symbols[animation.effect] ?? ["✨"]).map((symbol,i) => <span key={`${animation.id}-${i}`} className={!reduceMotion ? (animation.effect === "buzz" ? "magic-shake" : animation.effect === "punch" ? "magic-punch" : "magic-float") : ""} style={{animationDelay:`${i*0.12}s`}}>{symbol}</span>)}</div></div></div>}
      </div>
@@ -437,10 +438,11 @@ export default function StarzMessengerPage() {
    .magic-shake { display:inline-block;animation:shake .45s linear 2 }
    .magic-punch { display:inline-block;animation:punch .65s ease-out both }
    .magic-float { display:inline-block;animation:magicFloat 1.1s ease-out both }
-   @media(prefers-reduced-motion:reduce) { .heart-float,.heart-burst,.magic-pop,.magic-shake,.magic-punch,.magic-float { animation:none !important } }
+   @media(prefers-reduced-motion:reduce) { .heart-float,.heart-burst,.birthday-float,.magic-pop,.magic-shake,.magic-punch,.magic-float { animation:none !important } }
   `}</style>
  </main>;
 }
+
 
 
 
