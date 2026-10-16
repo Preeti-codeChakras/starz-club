@@ -43,10 +43,13 @@ export default function StarzMessengerPage() {
  const [animation, setAnimation] = useState<Effect | null>(null);
  const [showMagic, setShowMagic] = useState(false);
  const [memberSearch, setMemberSearch] = useState("");
+ const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
+ const [memberSearchOpen, setMemberSearchOpen] = useState(false);
  const [cooldown, setCooldown] = useState(0);
  const [now, setNow] = useState(Date.now());
  const { counts: unread, markRead, refresh: refreshUnread } = useStarzUnread();
  const bottomRef = useRef<HTMLDivElement>(null);
+  const chatPanelRef = useRef<HTMLElement>(null);
  const seenMessages = useRef(new Set<string>());
  const seenEffects = useRef(new Set<string>());
  const animationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,7 +153,24 @@ export default function StarzMessengerPage() {
   if (seenEffects.current.has(effect.id)) return;
   seenEffects.current.add(effect.id);
   if (animationTimer.current) clearTimeout(animationTimer.current);
-  setAnimation(effect); playSound(effect.effect);
+   setAnimation(effect); playSound(effect.effect);
+   // Classic Yahoo Messenger BUZZ: shake the entire chat panel.
+   // The existing reduced-motion preference is respected.
+   if (effect.effect === "buzz" && !reduceRef.current && chatPanelRef.current) {
+    chatPanelRef.current.animate(
+     [
+      { transform: "translateX(0)" },
+      { transform: "translateX(-12px)" },
+      { transform: "translateX(12px)" },
+      { transform: "translateX(-10px)" },
+      { transform: "translateX(10px)" },
+      { transform: "translateX(-6px)" },
+      { transform: "translateX(6px)" },
+      { transform: "translateX(0)" },
+     ],
+     { duration: 650, easing: "ease-in-out", iterations: 1 }
+    );
+   }
   // Only incoming BUZZ events vibrate; sender gets the existing animation and sound.
   if (effect.effect === "buzz" && effect.sender_user_id !== selfRef.current?.user_id && vibrationRef.current && !reduceRef.current && typeof navigator.vibrate === "function") {
    try { navigator.vibrate([200, 100, 200, 100, 400]); } catch { /* Vibration may be blocked by device settings. */ }
@@ -231,7 +251,7 @@ export default function StarzMessengerPage() {
  // Subscribe at club level, but only show private content for the active conversation.
  useEffect(() => {
   if (!self) return;
-  const channel = supabase.channel(`starz-messenger-self.clubid-{self.user_id}`)
+  const channel = supabase.channel(`starz-messenger-${self.club_id}-${self.user_id}`)
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "club_chat_messages", filter: `club_id=eq.${self.club_id}` }, payload => {
     const m = payload.new as Message;
     if (m.kind === "buzz") return; // Legacy v1 buzz events are historical; new effects use starz_chat_effects.
@@ -282,7 +302,7 @@ export default function StarzMessengerPage() {
     if (showError) setError(showError.message);
     else { const updated = { ...existingVisibility, hidden: false }; visibilityRef.current = { ...visibilityRef.current, [id]: updated }; setVisibility(p => ({ ...p, [id]: updated })); }
    }
-   setRoom(id); setMemberSearch("");
+   setRoom(id); setMemberSearch(""); setMemberSearchOpen(false); setMobileConversationsOpen(false);
   }
   setBusy(false);
  }
@@ -341,22 +361,29 @@ export default function StarzMessengerPage() {
  const dark = theme === "stars";
  const seconds = Math.max(0, Math.ceil((cooldown - now) / 1000));
  const symbols: Record<string,string[]> = { hearts:["❤️","💗","💕","💖","❤️","💞"], punch:["🥊","💥","POW!"], kiss:["💋","😘","💖"], confetti:["🎊","🎉","✨","🎈"], cricket:["🏏","🏏","💥","SIX!"], four:["🏏","🏃","💨","FOUR!"], fireworks:["🎆","🎇","✨"], laugh:["😂","🤣","😆"], clap:["👏","👏","🙌"], buzz:["⚡","BUZZ!","⚡"] };
- return <main className="min-h-[100dvh] bg-slate-50 px-3 py-4 text-slate-900 sm:px-6">
+ return <main className="min-h-[100dvh] bg-gradient-to-b from-blue-50 via-slate-50 to-white px-2 py-3 text-slate-900 sm:px-6">
   <div className="mx-auto max-w-6xl">
    <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-blue-950 px-5 py-4 text-white">
     <div><h1 className="text-xl font-bold">🏏 Starz Messenger</h1><p className="text-xs text-blue-200">Club chat • Private messages • Magic Effects</p></div>
     <div className="flex items-center gap-2"><button type="button" onClick={() => { setSoundOn(v => !v); }} className="rounded-lg border border-blue-300 px-3 py-2 text-sm">{soundOn ? "🔊 Sound on" : "🔇 Sound off"}</button><button type="button" disabled={!vibrationSupported} onClick={() => setVibrationOn(v => !v)} title={vibrationSupported ? "Toggle vibration for incoming BUZZ" : "Vibration is not supported by this browser"} className="rounded-lg border border-blue-300 px-3 py-2 text-sm disabled:opacity-50">{!vibrationSupported ? "📳 Vibration unavailable" : vibrationOn ? "📳 Vibration on" : "📴 Vibration off"}</button><Link href="/" className="rounded-lg border border-blue-300 px-3 py-2 text-sm">Home</Link></div>
    </header>
    {loading ? <p className="p-8 text-center">Loading messenger…</p> : !self ? <p role="alert" className="rounded-xl bg-red-50 p-6 text-red-700">{error}</p> :
-   <div className="grid gap-4 md:grid-cols-[260px_minmax(0,1fr)]">
-    <aside className="rounded-2xl border bg-white p-4 shadow-sm">
-     <h2 className="mb-3 font-bold text-blue-950">Conversations</h2>
-     <button onClick={() => setRoom("group")} className={`mb-3 flex w-full justify-between rounded-xl px-3 py-3 text-left ${room === "group" ? "bg-blue-900 text-white" : "bg-slate-100"}`}>🏏 Club Group <span>{unread.group ? `(${unread.group})` : ""}</span></button>
+   <>
+   <div className="mb-3 flex items-center gap-2 md:hidden">
+     <button type="button" aria-expanded={mobileConversationsOpen} onClick={() => { setMobileConversationsOpen(v => !v); setMemberSearchOpen(false); }} className="flex min-w-0 flex-1 items-center justify-between rounded-2xl border border-blue-100 bg-white px-4 py-3 text-left font-semibold text-blue-950 shadow-sm">
+      <span className="truncate">{room === "group" ? "🏏 Club Group" : `💬 ${partner?.name ?? "Private Chat"}`}</span><span className="ml-2 text-sm text-blue-700">{mobileConversationsOpen ? "Close ▲" : "Chats ▼"}</span>
+     </button>
+     <button type="button" aria-label="Find a member to message" onClick={() => { setMobileConversationsOpen(true); setMemberSearchOpen(true); }} className="rounded-2xl border border-blue-100 bg-white px-4 py-3 text-lg shadow-sm">🔍</button>
+    </div>
+   <div className="grid gap-3 md:grid-cols-[260px_minmax(0,1fr)] md:gap-4">
+    <aside className={`${mobileConversationsOpen ? "block" : "hidden"} rounded-2xl border border-blue-100 bg-white p-3 shadow-sm md:block md:p-4`}>
+     <div className="mb-2 flex items-center justify-between"><h2 className="font-bold text-blue-950">Conversations</h2><button type="button" className="text-xs font-semibold text-blue-700 md:hidden" onClick={() => setMobileConversationsOpen(false)}>Close ✕</button></div>
+     <button onClick={() => { setRoom("group"); setMobileConversationsOpen(false); }} className={`mb-3 flex w-full justify-between rounded-xl px-3 py-3 text-left ${room === "group" ? "bg-blue-900 text-white" : "bg-slate-100"}`}>🏏 Club Group <span>{unread.group ? `(${unread.group})` : ""}</span></button>
      <h3 className="mb-2 text-sm font-bold">Private chats</h3>
      {chats.filter(c => !visibility[c.id]?.hidden).map(c => {
        const other = members.find(m => m.user_id === (c.user_a === self.user_id ? c.user_b : c.user_a));
        return <div key={c.id} className="relative mb-1 flex items-center gap-1">
-        <button type="button" onClick={() => { setRoom(c.id); setChatMenu(null); }} className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 <span className={unread[c.id] ? "font-bold" : ""}>{other?.name ?? "Member"}</span></button><StarzUnreadBadge count={unread[c.id] ?? 0} />
+        <button type="button" onClick={() => { setRoom(c.id); setChatMenu(null); setMobileConversationsOpen(false); }} className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 <span className={unread[c.id] ? "font-bold" : ""}>{other?.name ?? "Member"}</span></button><StarzUnreadBadge count={unread[c.id] ?? 0} />
         <button type="button" aria-label={`Options for ${other?.name ?? "private chat"}`} aria-expanded={chatMenu === c.id} onClick={() => setChatMenu(v => v === c.id ? null : c.id)} className="rounded-lg border px-2 py-2 text-slate-700" >⋮</button>
         {chatMenu === c.id && <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-white p-1 shadow-xl">
          <button type="button" disabled={busy} onClick={() => void deletePrivateChat(c.id)} className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">🗑 Delete for me</button>
@@ -364,15 +391,18 @@ export default function StarzMessengerPage() {
         </div>}
        </div>;
       })}
-     <div className="mt-4 border-t pt-3"><label htmlFor="member-search" className="text-sm font-bold">Start private chat</label><input id="member-search" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Find club member…" className="mt-2 w-full rounded-lg border px-3 py-2 text-sm" />
-      <div className="mt-2 max-h-48 overflow-y-auto">{members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).map(m => <button key={m.user_id} disabled={busy} onClick={() => void openPrivate(m)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50 disabled:opacity-50">{m.name}</button>)}{members.length === 0 && <p className="text-xs text-slate-500">No other active members found.</p>}</div>
+     <div className="mt-3 border-t border-slate-100 pt-3">
+      <button type="button" aria-expanded={memberSearchOpen} onClick={() => setMemberSearchOpen(v => !v)} className="flex w-full items-center justify-between rounded-xl bg-blue-50 px-3 py-2.5 text-left text-sm font-semibold text-blue-900"><span>✉️ New private message</span><span>{memberSearchOpen ? "−" : "+"}</span></button>
+      {memberSearchOpen && <div className="mt-3"><label htmlFor="member-search" className="sr-only">Search club members</label><input id="member-search" autoFocus value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="🔍 Search members…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500" />
+       <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-slate-100">{members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).map(m => <button key={m.user_id} disabled={busy} onClick={() => void openPrivate(m)} className="block w-full border-b border-slate-50 px-3 py-2.5 text-left text-sm hover:bg-blue-50 disabled:opacity-50">{m.name}</button>)}{members.length === 0 && <p className="p-3 text-xs text-slate-500">No other active members found.</p>}</div>
+      </div>}
      </div>
     </aside>
-    <section className="min-w-0 rounded-2xl border bg-white p-3 shadow-sm sm:p-4">
+     <section ref={chatPanelRef} className="min-w-0 rounded-2xl border border-blue-100 bg-white p-3 shadow-sm sm:p-4">
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-blue-950">{title}</h2><label className="text-sm">Shared background <select value={theme} disabled={busy} onChange={e => void changeTheme(e.target.value as Theme)} className="ml-2 rounded-lg border bg-white p-2">{themes.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></label></div>
      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-     <div className={`relative h-[min(58dvh,560px)] min-h-[300px] overflow-hidden rounded-xl border ${wallpapers[theme]}`}>
-      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`(i*17+5)%95%`,fontSize:`{12+(i%4)*5}px`,animationDuration:`10+i%5*2s`,animationDelay:`{-i*1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
+     <div className={`relative h-[min(65dvh,620px)] min-h-[360px] overflow-hidden rounded-xl border ${wallpapers[theme]}`}>
+      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`${(i*17+5)%95}%`,fontSize:`${12+(i%4)*5}px`,animationDuration:`${10+(i%5)*2}s`,animationDelay:`${-i*1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
       <StarzDoodleLayer clubId={self.club_id} roomId={room} userId={self.user_id} enabled={doodleMode} />
       {theme === "stars" && <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40" style={{backgroundImage:"radial-gradient(white 1px, transparent 1px)",backgroundSize:"32px 32px"}} />}
       <div className={`relative z-10 h-full overflow-y-auto p-3 sm:p-4 ${doodleMode ? "pointer-events-none" : ""}`} aria-label={title}>
@@ -381,7 +411,7 @@ export default function StarzMessengerPage() {
       </div>
       {animation?.effect === "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-label={`${animation.sender_name} sent hearts`}>
        <span className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-rose-700 shadow-sm">{animation.sender_name} sent ❤️ Hearts</span>
-       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`animation.id-heart-{i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`14+(i*7)%23px`,animationDelay:`{(i%13)*0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
+       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`${animation.id}-heart-${i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`${14+(i*7)%23}px`,animationDelay:`${(i%13)*0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
       </div>}
       {animation && animation.effect !== "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"><div className={`rounded-3xl bg-white/85 px-5 py-4 text-center shadow-xl ${!reduceMotion ? "magic-pop" : ""}`}><p className="text-sm font-bold text-blue-950">{animation.sender_name} sent {labelForEffect(animation.effect)}</p><div className="relative mt-3 flex min-h-20 items-center justify-center gap-3 text-4xl">{(symbols[animation.effect] ?? ["✨"]).map((symbol,i) => <span key={`${animation.id}-${i}`} className={!reduceMotion ? (animation.effect === "buzz" ? "magic-shake" : animation.effect === "punch" ? "magic-punch" : "magic-float") : ""} style={{animationDelay:`${i*0.12}s`}}>{symbol}</span>)}</div></div></div>}
      </div>
@@ -391,7 +421,7 @@ export default function StarzMessengerPage() {
      {showMagic && <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">{effects.filter(e => e.id !== "buzz").map(e => <button key={e.id} disabled={busy || seconds > 0} onClick={() => void sendEffect(e.id)} className="rounded-xl border bg-white px-2 py-3 text-sm hover:bg-violet-50 disabled:opacity-50">{e.label}</button>)}</div>}
      <p className="mt-3 text-xs text-slate-500">Effects appear for everyone viewing this conversation. Sound is opt-in. Incoming BUZZ vibration is available on supported devices; iPhone browsers do not support web vibration. BUZZ has a 30-second cooldown; other effects have a 5-second cooldown. Respect reduced-motion settings.</p>
     </section>
-   </div>}
+   </div></>}
   </div>
   <style jsx>{`
    @keyframes floatUp { 0% { transform:translateY(80vh) rotate(-12deg);opacity:0 } 20% {opacity:.55} 100% {transform:translateY(-20vh) rotate(20deg);opacity:0} }
@@ -411,6 +441,7 @@ export default function StarzMessengerPage() {
   `}</style>
  </main>;
 }
+
 
 
 
