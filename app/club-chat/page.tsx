@@ -7,6 +7,7 @@ import StarzDoodleLayer from "./StarzDoodleLayer";
 
 type Member = { user_id: string; name: string; club_id: string };
 type Message = { id: string; sender_user_id: string; sender_name: string; body: string; created_at: string; kind?: string };
+type ChatVisibility = { chat_id: string; cleared_at: string; hidden: boolean };
 type PrivateChat = { id: string; club_id: string; user_a: string; user_b: string; theme: string };
 type Effect = { id: string; club_id: string; chat_id: string | null; sender_user_id: string; sender_name: string; effect: string; created_at: string };
 type Theme = "classic" | "hearts" | "stars" | "rainbow" | "stadium";
@@ -22,6 +23,9 @@ export default function StarzMessengerPage() {
  const [self, setSelf] = useState<Member | null>(null);
  const [members, setMembers] = useState<Member[]>([]);
  const [chats, setChats] = useState<PrivateChat[]>([]);
+ const [visibility, setVisibility] = useState<Record<string, ChatVisibility>>({});
+ const visibilityRef = useRef<Record<string, ChatVisibility>>({});
+ const [chatMenu, setChatMenu] = useState<string | null>(null);
  const [room, setRoom] = useState<string>("group");
  const [messages, setMessages] = useState<Message[]>([]);
  const [draft, setDraft] = useState("");
@@ -175,13 +179,16 @@ export default function StarzMessengerPage() {
    }
    const current: Member = { user_id: auth.user.id, name: mine.name, club_id: mine.club_id };
    selfRef.current = current; setSelf(current);
-   const [directory, privateRooms] = await Promise.all([
+   const [directory, privateRooms, visibilityRows] = await Promise.all([
     supabase.rpc("starz_chat_directory", { p_club_id: current.club_id }),
-    supabase.from("starz_private_chats").select("*").eq("club_id",current.club_id)
+    supabase.from("starz_private_chats").select("*").eq("club_id",current.club_id),
+     supabase.from("starz_private_chat_visibility").select("chat_id,cleared_at,hidden").eq("user_id",current.user_id)
    ]);
    if (cancelled) return;
    if (directory.error) setError(directory.error.message);
    if (privateRooms.error) setError(privateRooms.error.message);
+    if (visibilityRows.error) setError(visibilityRows.error.message);
+    else { const map = Object.fromEntries(((visibilityRows.data ?? []) as ChatVisibility[]).map(v => [v.chat_id, v])); visibilityRef.current = map; setVisibility(map); }
    setMembers(((directory.data ?? []) as Member[]).filter(m => m.user_id && m.user_id !== current.user_id));
    const existing = (privateRooms.data ?? []) as PrivateChat[]; chatRef.current = existing; setChats(existing);
    setLoading(false);
@@ -197,9 +204,10 @@ export default function StarzMessengerPage() {
   const clubId = self.club_id;
   async function loadRoom() {
    setError("");
-   const query = target === "group"
+   const clearedAt = visibilityRef.current[target]?.cleared_at;
+    const query = target === "group"
     ? supabase.from("club_chat_messages").select("*").eq("club_id", clubId).order("created_at", { ascending: false }).limit(100)
-    : supabase.from("starz_private_messages").select("*").eq("chat_id", target).order("created_at", { ascending: false }).limit(100);
+    : (() => { let q = supabase.from("starz_private_messages").select("*").eq("chat_id", target); if (clearedAt) q = q.gt("created_at", clearedAt); return q.order("created_at", { ascending: false }).limit(100); })();
    const [history, setting] = await Promise.all([
     query,
     target === "group" ? supabase.from("starz_group_chat_settings").select("theme").eq("club_id",clubId).maybeSingle()
@@ -220,7 +228,7 @@ export default function StarzMessengerPage() {
  // Subscribe at club level, but only show private content for the active conversation.
  useEffect(() => {
   if (!self) return;
-  const channel = supabase.channel(`starz-messenger-${self.club_id}-${self.user_id}`)
+  const channel = supabase.channel(`starz-messenger-self.clubid-{self.user_id}`)
    .on("postgres_changes", { event: "INSERT", schema: "public", table: "club_chat_messages", filter: `club_id=eq.${self.club_id}` }, payload => {
     const m = payload.new as Message;
     if (m.kind === "buzz") return; // Legacy v1 buzz events are historical; new effects use starz_chat_effects.
@@ -265,10 +273,38 @@ export default function StarzMessengerPage() {
     if (readError) setError(readError.message);
     else if (row) setChats(p => [...p.filter(c => c.id !== id), row as PrivateChat]);
    }
+   const existingVisibility = visibilityRef.current[id];
+   if (existingVisibility?.hidden) {
+    const { error: showError } = await supabase.from("starz_private_chat_visibility").update({ hidden: false }).eq("chat_id", id).eq("user_id", self.user_id);
+    if (showError) setError(showError.message);
+    else { const updated = { ...existingVisibility, hidden: false }; visibilityRef.current = { ...visibilityRef.current, [id]: updated }; setVisibility(p => ({ ...p, [id]: updated })); }
+   }
    setRoom(id); setMemberSearch("");
   }
   setBusy(false);
  }
+ async function deletePrivateChat(chatId: string) {
+  if (!self || busy) return;
+  const chat = chats.find(c => c.id === chatId);
+  if (!chat || (chat.user_a !== self.user_id && chat.user_b !== self.user_id)) return;
+  if (!window.confirm("Delete this conversation for you? The other member will keep their messages. This cannot be undone for your account.")) return;
+  setBusy(true); setError("");
+  const cutoff = new Date().toISOString();
+  const { data, error: deleteError } = await supabase.from("starz_private_chat_visibility")
+   .upsert({ chat_id: chatId, user_id: self.user_id, cleared_at: cutoff, hidden: true }, { onConflict: "chat_id,user_id" })
+   .select("chat_id,cleared_at,hidden").single();
+  if (deleteError) setError(deleteError.message);
+  else if (data) {
+   const updated = data as ChatVisibility;
+   visibilityRef.current = { ...visibilityRef.current, [chatId]: updated };
+   setVisibility(p => ({ ...p, [chatId]: updated }));
+   setUnread(p => ({ ...p, [chatId]: 0 }));
+   if (roomRef.current === chatId) setRoom("group");
+   setChatMenu(null);
+  }
+  setBusy(false);
+ }
+
  async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
   e.preventDefault(); if (!self || !draft.trim() || busy) return;
   const text = draft.trim().slice(0, 2000); setBusy(true); setError("");
@@ -314,7 +350,17 @@ export default function StarzMessengerPage() {
      <h2 className="mb-3 font-bold text-blue-950">Conversations</h2>
      <button onClick={() => setRoom("group")} className={`mb-3 flex w-full justify-between rounded-xl px-3 py-3 text-left ${room === "group" ? "bg-blue-900 text-white" : "bg-slate-100"}`}>🏏 Club Group <span>{unread.group ? `(${unread.group})` : ""}</span></button>
      <h3 className="mb-2 text-sm font-bold">Private chats</h3>
-     {chats.map(c => { const other = members.find(m => m.user_id === (c.user_a === self.user_id ? c.user_b : c.user_a)); return <button key={c.id} onClick={() => setRoom(c.id)} className={`mb-1 flex w-full justify-between rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 {other?.name ?? "Member"}<span>{unread[c.id] ? `(${unread[c.id]})` : ""}</span></button>; })}
+     {chats.filter(c => !visibility[c.id]?.hidden).map(c => {
+       const other = members.find(m => m.user_id === (c.user_a === self.user_id ? c.user_b : c.user_a));
+       return <div key={c.id} className="relative mb-1 flex items-center gap-1">
+        <button type="button" onClick={() => { setRoom(c.id); setChatMenu(null); }} className={`min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-left text-sm ${room === c.id ? "bg-blue-900 text-white" : "hover:bg-blue-50"}`}>💬 {other?.name ?? "Member"} {unread[c.id] ? `(${unread[c.id]})` : ""}</button>
+        <button type="button" aria-label={`Options for ${other?.name ?? "private chat"}`} aria-expanded={chatMenu === c.id} onClick={() => setChatMenu(v => v === c.id ? null : c.id)} className="rounded-lg border px-2 py-2 text-slate-700" >⋮</button>
+        {chatMenu === c.id && <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-white p-1 shadow-xl">
+         <button type="button" disabled={busy} onClick={() => void deletePrivateChat(c.id)} className="w-full rounded-md px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50">🗑 Delete for me</button>
+         <button type="button" onClick={() => setChatMenu(null)} className="w-full rounded-md px-3 py-2 text-left text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
+        </div>}
+       </div>;
+      })}
      <div className="mt-4 border-t pt-3"><label htmlFor="member-search" className="text-sm font-bold">Start private chat</label><input id="member-search" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} placeholder="Find club member…" className="mt-2 w-full rounded-lg border px-3 py-2 text-sm" />
       <div className="mt-2 max-h-48 overflow-y-auto">{members.filter(m => m.name.toLowerCase().includes(memberSearch.toLowerCase())).map(m => <button key={m.user_id} disabled={busy} onClick={() => void openPrivate(m)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-blue-50 disabled:opacity-50">{m.name}</button>)}{members.length === 0 && <p className="text-xs text-slate-500">No other active members found.</p>}</div>
      </div>
@@ -323,7 +369,7 @@ export default function StarzMessengerPage() {
      <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-bold text-blue-950">{title}</h2><label className="text-sm">Shared background <select value={theme} disabled={busy} onChange={e => void changeTheme(e.target.value as Theme)} className="ml-2 rounded-lg border bg-white p-2">{themes.map(t => <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>)}</select></label></div>
      {error && <p role="alert" className="mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
      <div className={`relative h-[min(58dvh,560px)] min-h-[300px] overflow-hidden rounded-xl border ${wallpapers[theme]}`}>
-      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`${(i*17+5)%95}%`,fontSize:`${12+(i%4)*5}px`,animationDuration:`${10+i%5*2}s`,animationDelay:`${-i*1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
+      {theme === "hearts" && !reduceMotion && <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">{Array.from({length:14},(_,i) => <span key={i} className="heart-float absolute text-2xl opacity-30" style={{left:`(i*17+5)%95%`,fontSize:`{12+(i%4)*5}px`,animationDuration:`10+i%5*2s`,animationDelay:`{-i*1.9}s`}}>{["💕","💗","🩷","❤️"][i%4]}</span>)}</div>}
       <StarzDoodleLayer clubId={self.club_id} roomId={room} userId={self.user_id} enabled={doodleMode} />
       {theme === "stars" && <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-40" style={{backgroundImage:"radial-gradient(white 1px, transparent 1px)",backgroundSize:"32px 32px"}} />}
       <div className={`relative z-10 h-full overflow-y-auto p-3 sm:p-4 ${doodleMode ? "pointer-events-none" : ""}`} aria-label={title}>
@@ -332,7 +378,7 @@ export default function StarzMessengerPage() {
       </div>
       {animation?.effect === "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-label={`${animation.sender_name} sent hearts`}>
        <span className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-rose-700 shadow-sm">{animation.sender_name} sent ❤️ Hearts</span>
-       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`${animation.id}-heart-${i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`${14+(i*7)%23}px`,animationDelay:`${(i%13)*0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
+       {Array.from({length:reduceMotion ? 7 : 26},(_,i) => <span key={`animation.id-heart-{i}`} className={`absolute bottom-[-48px] select-none ${!reduceMotion ? "heart-burst" : "heart-still"}`} style={{left:`${(i*37+11)%96}%`,fontSize:`14+(i*7)%23px`,animationDelay:`{(i%13)*0.12}s`,animationDuration:`${2.3+(i%5)*0.26}s`,opacity:reduceMotion?.35:undefined}}>{["💕","💗","❤️","💖","🩷"][i%5]}</span>)}
       </div>}
       {animation && animation.effect !== "hearts" && <div aria-live="polite" className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden"><div className={`rounded-3xl bg-white/85 px-5 py-4 text-center shadow-xl ${!reduceMotion ? "magic-pop" : ""}`}><p className="text-sm font-bold text-blue-950">{animation.sender_name} sent {labelForEffect(animation.effect)}</p><div className="relative mt-3 flex min-h-20 items-center justify-center gap-3 text-4xl">{(symbols[animation.effect] ?? ["✨"]).map((symbol,i) => <span key={`${animation.id}-${i}`} className={!reduceMotion ? (animation.effect === "buzz" ? "magic-shake" : animation.effect === "punch" ? "magic-punch" : "magic-float") : ""} style={{animationDelay:`${i*0.12}s`}}>{symbol}</span>)}</div></div></div>}
      </div>
@@ -362,3 +408,5 @@ export default function StarzMessengerPage() {
   `}</style>
  </main>;
 }
+
+
