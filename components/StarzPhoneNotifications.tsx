@@ -3,9 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-const DISMISSED_KEY = "starz-phone-notifications-dismissed-until";
-const WEEK = 7 * 24 * 60 * 60 * 1000;
-
 type Permission = NotificationPermission | "unsupported";
 
 function decodeKey(key: string): Uint8Array<ArrayBuffer> {
@@ -20,20 +17,26 @@ export default function StarzPhoneNotifications() {
   const [permission, setPermission] = useState<Permission>("unsupported");
   const [signedIn, setSignedIn] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [installVisible, setInstallVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    const supported = "Notification" in window && "serviceWorker" in navigator && "PushManager" in window;
-    if (!supported) return;
+    const supported =
+      "Notification" in window &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window;
+
+    if (!supported) {
+      setChecking(false);
+      return;
+    }
 
     function refreshBannerState() {
       const install = document.querySelector('[aria-label="Install Starz Cricket Club"]');
       setInstallVisible(Boolean(install));
-      setDismissed(Date.now() < Number(localStorage.getItem(DISMISSED_KEY) || "0"));
       setPermission(Notification.permission);
     }
 
@@ -43,58 +46,79 @@ export default function StarzPhoneNotifications() {
     window.addEventListener("focus", refreshBannerState);
 
     async function initialize() {
-      const { data } = await supabase.auth.getUser();
-      if (cancelled) return;
-      setSignedIn(Boolean(data.user));
-      if (!data.user) return;
       try {
+        const { data, error: authError } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (authError || !data.user) {
+          setSignedIn(false);
+          return;
+        }
+        setSignedIn(true);
+
+        // Do not equate Android permission with a working server-side registration.
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
-        if (cancelled) return;
-        if (!subscription) return;
-        // The browser already has an active push subscription.
-// Hide the setup banner even if the database lookup fails.
-if (Notification.permission === "granted") {
-  setSubscribed(true);
-}
-        // A browser subscription is not sufficient unless this user has it stored in Supabase.
-        const { data: row, error } = await supabase.from("starz_push_subscriptions")
-          .select("id").eq("user_id", data.user.id).eq("endpoint", subscription.endpoint).maybeSingle();
-        if (!cancelled && !error) setSubscribed(Boolean(row));
-      } catch { /* Service worker may not be ready. */ }
-    }
-    void initialize();
-    return () => { cancelled = true; observer.disconnect(); window.removeEventListener("focus", refreshBannerState); };
-  }, []);
+        if (cancelled || !subscription) return;
 
-  function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, String(Date.now() + WEEK));
-    setDismissed(true);
-  }
+        const { data: row, error } = await supabase
+          .from("starz_push_subscriptions")
+          .select("id")
+          .eq("user_id", data.user.id)
+          .eq("endpoint", subscription.endpoint)
+          .maybeSingle();
+
+        // A failed lookup is not proof that the phone is subscribed.
+        if (!cancelled && !error) setSubscribed(Boolean(row));
+      } catch {
+        // Leave the setup option available if the status cannot be verified.
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    }
+
+    void initialize();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      window.removeEventListener("focus", refreshBannerState);
+    };
+  }, []);
 
   async function enable() {
     if (busy || permission === "denied") return;
     setBusy(true);
     setStatus("");
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Please sign in to enable phone notifications.");
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Please sign in to enable phone notifications.");
+
       const publicKey = process.env.NEXT_PUBLIC_STARZ_VAPID_PUBLIC_KEY;
       if (!publicKey) throw new Error("Push notifications have not been configured yet. Please contact a club admin.");
-      // This function is invoked directly by the member's button click.
+
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result !== "granted") {
-        setStatus(result === "denied" ? "Notifications are blocked. Enable them in Chrome or Android app settings." : "Permission wasn't granted. You can try again later.");
+        setStatus(result === "denied"
+          ? "Notifications are blocked. Enable them in Chrome or Android app settings."
+          : "Permission wasn't granted. You can try again later.");
         return;
       }
+
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: decodeKey(publicKey),
-      });
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeKey(publicKey),
+        });
+      }
+
       const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) throw new Error("Your phone returned an incomplete push subscription.");
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+        throw new Error("Your phone returned an incomplete push subscription.");
+      }
+
       const { error } = await supabase.from("starz_push_subscriptions").upsert({
         user_id: user.id,
         endpoint: json.endpoint,
@@ -103,14 +127,19 @@ if (Notification.permission === "granted") {
         user_agent: navigator.userAgent,
       }, { onConflict: "endpoint" });
       if (error) throw error;
+
       setSubscribed(true);
       setStatus("Phone notifications enabled on this device!");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to enable notifications.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
-  if (permission === "unsupported" || !signedIn || subscribed || dismissed || installVisible) return null;
+  // If notifications are not registered, a past dismissal must not hide setup.
+  // Keep installation first only when the installation banner is actually visible.
+  if (permission === "unsupported" || !signedIn || checking || subscribed || installVisible) return null;
 
   return (
     <section aria-label="Enable Starz phone notifications" className="mb-5 rounded-2xl border border-blue-200 bg-white p-4 shadow-sm sm:p-5">
@@ -124,10 +153,8 @@ if (Notification.permission === "granted") {
           ) : (
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" disabled={busy} onClick={() => void enable()} className="rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Enabling…" : "🔔 Enable Notifications"}</button>
-              <button type="button" onClick={dismiss} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Maybe Later</button>
             </div>
           )}
-          {permission === "denied" && <button type="button" onClick={dismiss} className="mt-3 text-sm font-semibold text-blue-800 underline">Got it</button>}
           {status && <p role="status" className="mt-3 text-sm text-blue-900">{status}</p>}
         </div>
       </div>
