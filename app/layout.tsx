@@ -6,6 +6,7 @@ import SessionTimeout from "@/components/SessionTimeout";
 import HomeButton from "@/components/HomeButton";
 import ThemeSwitcher from "@/components/ThemeSwitcher";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import StarzChatNotifications from "@/components/StarzChatNotifications";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -111,6 +112,7 @@ export default function RootLayout({
 
         <SessionTimeout />
 <ServiceWorkerRegistration />
+<StarzChatNotifications />
         <div
           className="
             fixed
