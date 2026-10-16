@@ -24,3 +24,5 @@ self.addEventListener("activate", (event) => {
 // All requests continue directly to the network.
 // This avoids caching authenticated pages,
 // Supabase responses, chat messages, or financial data.
+
+
