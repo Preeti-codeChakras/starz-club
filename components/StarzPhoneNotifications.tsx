@@ -52,6 +52,11 @@ export default function StarzPhoneNotifications() {
         const subscription = await registration.pushManager.getSubscription();
         if (cancelled) return;
         if (!subscription) return;
+        // The browser already has an active push subscription.
+// Hide the setup banner even if the database lookup fails.
+if (Notification.permission === "granted") {
+  setSubscribed(true);
+}
         // A browser subscription is not sufficient unless this user has it stored in Supabase.
         const { data: row, error } = await supabase.from("starz_push_subscriptions")
           .select("id").eq("user_id", data.user.id).eq("endpoint", subscription.endpoint).maybeSingle();
