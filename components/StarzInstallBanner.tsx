@@ -8,7 +8,6 @@ type InstallPromptEvent = Event & {
 };
 
 const DISMISSED_UNTIL_KEY = "starz-install-banner-dismissed-until";
-const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
 function isStandalone() {
   return (
@@ -28,8 +27,9 @@ export default function StarzInstallBanner() {
         setVisible(false);
         return;
       }
-      const dismissedUntil = Number(localStorage.getItem(DISMISSED_UNTIL_KEY) || 0);
-      setVisible(Date.now() >= dismissedUntil);
+      // An old "Not now" choice should not keep hiding the install option
+      // after a reinstall. Show the banner whenever Starz runs in a browser.
+      setVisible(true);
     }
 
     function onBeforeInstallPrompt(event: Event) {
@@ -42,19 +42,33 @@ export default function StarzInstallBanner() {
       setVisible(false);
       setInstallPrompt(null);
       setShowHelp(false);
+      localStorage.removeItem(DISMISSED_UNTIL_KEY);
     }
 
+    function onDisplayModeChange() {
+      refresh();
+    }
+
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
     refresh();
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("pageshow", refresh);
+    mediaQuery.addEventListener("change", onDisplayModeChange);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("pageshow", refresh);
+      mediaQuery.removeEventListener("change", onDisplayModeChange);
     };
   }, []);
 
   function dismiss() {
-    localStorage.setItem(DISMISSED_UNTIL_KEY, String(Date.now() + SEVEN_DAYS));
+    // Keep dismissal only for this page visit. On a future visit, the member
+    // can install again without having to clear Chrome's site storage.
+    localStorage.removeItem(DISMISSED_UNTIL_KEY);
     setVisible(false);
   }
 
@@ -67,8 +81,11 @@ export default function StarzInstallBanner() {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
       setInstallPrompt(null);
-      if (choice.outcome === "accepted") setVisible(false);
-      else dismiss();
+      if (choice.outcome === "accepted") {
+        setVisible(false);
+      } else {
+        dismiss();
+      }
     } catch {
       setShowHelp(true);
     }
