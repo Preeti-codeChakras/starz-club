@@ -45,7 +45,8 @@ export default function StarzMessengerPage() {
  const [memberSearch, setMemberSearch] = useState("");
  const [mobileConversationsOpen, setMobileConversationsOpen] = useState(false);
  const [memberSearchOpen, setMemberSearchOpen] = useState(false);
- const [cooldown, setCooldown] = useState(0);
+ const [buzzCooldown, setBuzzCooldown] = useState(0);
+ const [magicCooldown, setMagicCooldown] = useState(0);
  const [now, setNow] = useState(Date.now());
  const { counts: unread, markRead, refresh: refreshUnread } = useStarzUnread();
  const bottomRef = useRef<HTMLDivElement>(null);
@@ -340,12 +341,13 @@ export default function StarzMessengerPage() {
   setBusy(false);
  }
  async function sendEffect(effect: string) {
-  if (!self || busy || cooldown > now) return;
+  if (!self || busy || (effect === "buzz" ? buzzCooldown : magicCooldown) > Date.now()) return;
   setBusy(true); setError("");
   const target = room;
   const { data, error: e } = await supabase.rpc("starz_send_effect", { p_club_id: self.club_id, p_chat_id: target === "group" ? null : target, p_effect: effect });
   if (e) setError(e.message);
-  else { setCooldown(Date.now() + (effect === "buzz" ? 30000 : 5000)); if (data && activeRoomRef.current === target) showEffect(data as Effect); setShowMagic(false); }
+  else { if (effect === "buzz") setBuzzCooldown(Date.now() + 15000);
+   else setMagicCooldown(Date.now() + 5000); if (data && activeRoomRef.current === target) showEffect(data as Effect); setShowMagic(false); }
   setBusy(false);
  }
  async function changeTheme(next: Theme) {
@@ -360,7 +362,8 @@ export default function StarzMessengerPage() {
  const partner = room === "group" ? null : (() => { const chat = chats.find(c => c.id === room); return members.find(m => m.user_id === (chat?.user_a === self?.user_id ? chat?.user_b : chat?.user_a)); })();
  const title = room === "group" ? "🏏 Club Group Chat" : `💬 ${partner?.name ?? "Private Chat"}`;
  const dark = theme === "stars";
- const seconds = Math.max(0, Math.ceil((cooldown - now) / 1000));
+ const buzzSeconds = Math.max(0, Math.ceil((buzzCooldown - now) / 1000));
+ const magicSeconds = Math.max(0, Math.ceil((magicCooldown - now) / 1000));
  const symbols: Record<string,string[]> = { hearts:["❤️","💗","💕","💖","❤️","💞"], punch:["🥊","💥","POW!"], kiss:["💋","😘","💖"], confetti:["🎊","🎉","✨","🎈"], cricket:["🏏","🏏","💥","SIX!"], four:["🏏","🏃","💨","FOUR!"], fireworks:["🎆","🎇","✨"], laugh:["😂","🤣","😆"], clap:["👏","👏","🙌"], birthday:["🎂","🎉","🥳","🎁","🎈"], buzz:["⚡","BUZZ!","⚡"] };
  return <main className="min-h-[100dvh] bg-gradient-to-b from-blue-50 via-slate-50 to-white px-2 py-3 text-slate-900 sm:px-6">
   <div className="mx-auto max-w-6xl">
@@ -418,9 +421,9 @@ export default function StarzMessengerPage() {
      </div>
      <div className="mt-2 flex items-center gap-2"><button type="button" onClick={() => setDoodleMode(v => !v)} className={`rounded-lg px-3 py-2 text-sm font-semibold ${doodleMode ? "bg-rose-600 text-white" : "bg-rose-50 text-rose-800 border"}`}>{doodleMode ? "✏️ Finish drawing" : "🎨 Doodle on background"}</button><span className="text-xs text-slate-500">{doodleMode ? "Draw on the chat background. Messages stay visible." : "Shared live with everyone in this conversation"}</span></div>
      <form onSubmit={sendMessage} className="mt-3 flex gap-2"><input aria-label="Chat message" maxLength={2000} value={draft} onChange={e => setDraft(e.target.value)} placeholder="Type a message…" className="min-w-0 flex-1 rounded-xl border px-3 py-3"/><button disabled={busy || !draft.trim()} className="rounded-xl bg-blue-900 px-4 py-3 font-semibold text-white disabled:opacity-50">Send</button></form>
-     <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy || seconds > 0} onClick={() => void sendEffect("buzz")} className="rounded-xl bg-amber-300 px-4 py-2 font-bold disabled:opacity-50">⚡ BUZZ {seconds > 0 ? `${seconds}s` : ""}</button><button type="button" onClick={() => setShowMagic(v => !v)} className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 font-bold text-violet-900">🪄 Magic Effects {showMagic ? "▲" : "▼"}</button></div>
-     {showMagic && <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">{effects.filter(e => e.id !== "buzz").map(e => <button key={e.id} disabled={busy || seconds > 0} onClick={() => void sendEffect(e.id)} className="rounded-xl border bg-white px-2 py-3 text-sm hover:bg-violet-50 disabled:opacity-50">{e.label}</button>)}</div>}
-     <p className="mt-3 text-xs text-slate-500">Effects appear for everyone viewing this conversation. Sound is opt-in. Incoming BUZZ vibration is available on supported devices; iPhone browsers do not support web vibration. BUZZ has a 30-second cooldown; other effects have a 5-second cooldown. Respect reduced-motion settings.</p>
+     <div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy || buzzSeconds > 0} onClick={() => void sendEffect("buzz")} className="rounded-xl bg-amber-300 px-4 py-2 font-bold disabled:opacity-50">⚡ BUZZ {buzzSeconds > 0 ? `${buzzSeconds}s` : ""}</button><button type="button" onClick={() => setShowMagic(v => !v)} className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-2 font-bold text-violet-900">🪄 Magic Effects {showMagic ? "▲" : "▼"}</button></div>
+     {showMagic && <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-3">{effects.filter(e => e.id !== "buzz").map(e => <button key={e.id} disabled={busy || magicSeconds > 0} onClick={() => void sendEffect(e.id)} className="rounded-xl border bg-white px-2 py-3 text-sm hover:bg-violet-50 disabled:opacity-50">{e.label}</button>)}</div>}
+     <p className="mt-3 text-xs text-slate-500">Effects appear for everyone viewing this conversation. Sound is opt-in. Incoming BUZZ vibration is available on supported devices; iPhone browsers do not support web vibration. BUZZ has its own 30-second cooldown; Magic Effects have a separate 5-second cooldown. Respect reduced-motion settings.</p>
     </section>
    </div></>}
   </div>
