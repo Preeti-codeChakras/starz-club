@@ -44,6 +44,26 @@ export default function UserMenu() {
   const [menuOpen, setMenuOpen] =
     useState(false);
 
+  const [chatAlertsOn, setChatAlertsOn] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setChatAlertsOn(localStorage.getItem("starz-chat-alerts") === "true");
+    sync();
+    window.addEventListener("starz-chat-alerts-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("starz-chat-alerts-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  function toggleChatAlerts() {
+    const next = !chatAlertsOn;
+    localStorage.setItem("starz-chat-alerts", String(next));
+    setChatAlertsOn(next);
+    window.dispatchEvent(new Event("starz-chat-alerts-changed"));
+  }
+
   async function loadCurrentUser() {
     setLoading(true);
     setHasPlayerStats(false);
@@ -465,6 +485,23 @@ export default function UserMenu() {
   </div>
 )}
 
+
+            {/* CHAT ALERTS — stored in this browser */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={chatAlertsOn}
+              onClick={toggleChatAlerts}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate-700 transition hover:bg-blue-50"
+            >
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                {chatAlertsOn ? "🔔" : "🔕"}
+              </span>
+              <span className="flex-1">Chat Alerts</span>
+              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${chatAlertsOn ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}`}>
+                {chatAlertsOn ? "On" : "Off"}
+              </span>
+            </button>
 
             {/* SIGN OUT */}
             <button
