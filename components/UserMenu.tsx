@@ -44,10 +44,10 @@ export default function UserMenu() {
   const [menuOpen, setMenuOpen] =
     useState(false);
 
-  const [chatAlertsOn, setChatAlertsOn] = useState(false);
+  const [chatAlertsOn, setChatAlertsOn] = useState(true);
 
   useEffect(() => {
-    const sync = () => setChatAlertsOn(localStorage.getItem("starz-chat-alerts") === "true");
+    const sync = () => setChatAlertsOn(localStorage.getItem("starz-chat-alerts") !== "false");
     sync();
     window.addEventListener("starz-chat-alerts-changed", sync);
     window.addEventListener("storage", sync);

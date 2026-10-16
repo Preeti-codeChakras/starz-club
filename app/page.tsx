@@ -7,6 +7,7 @@ import BirthdayBanner from "@/components/BirthdayBanner";
 import OnamBanner from "@/components/OnamBanner";
 import CurrentClubBrand from "@/components/CurrentClubBrand";
 import HomeSideSignature from "@/components/HomeSideSignature";
+import StarzInstallBanner from "@/components/StarzInstallBanner";
 
 type MenuItem = {
   name: string;
@@ -210,6 +211,8 @@ export default function Home() {
       {/* MAIN CONTENT */}
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-8 sm:py-10">
+        <StarzInstallBanner />
+
         {/* PROFILE COMPLETION WARNING */}
 
         <ProfileCompletionWarning />
@@ -403,6 +406,7 @@ export default function Home() {
     </main>
   );
 }
+
 
 
 
