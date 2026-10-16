@@ -12,6 +12,14 @@ const tables = new Set(["club_chat_messages", "starz_private_messages", "starz_c
 export async function POST(request: NextRequest) {
   const secret = process.env.STARZ_PUSH_WEBHOOK_SECRET;
   const received = request.headers.get("x-starz-webhook-secret");
+  console.log("[STARZ PUSH AUTH DEBUG]", {
+  serverSecretConfigured: Boolean(secret),
+  serverSecretLengthValid: Boolean(secret && secret.length >= 32),
+  headerReceived: Boolean(received),
+  lengthsMatch: Boolean(
+    secret && received && received.length === secret.length
+  ),
+});
   // Require a long random shared secret configured on every Supabase webhook.
   if (!secret || secret.length < 32 || !received || received.length !== secret.length) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
