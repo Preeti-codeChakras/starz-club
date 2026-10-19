@@ -62,16 +62,16 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Starz Cricket Club WebApp",
     description:
-      "From player availability and skill ratings to fair and balanced team generation.",
+      "Starz Cricket Club WebApp is a platform designed to empower women in cricket through technology, bringing players together with smarter team management, scheduling, communication, and community engagement.",
     url: "https://www.starzcricketclub.com",
     siteName: "Starz Cricket Club",
     type: "website",
 
     images: [
       {
-        url: "/og-image.png",
+        url: "https://www.starzcricketclub.com/og-image.png",
         width: 1200,
-        height: 630,
+        height: 676,
         alt: "Starz Cricket Club App",
       },
     ],
