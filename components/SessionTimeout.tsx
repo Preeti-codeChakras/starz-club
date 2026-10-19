@@ -26,6 +26,9 @@ export default function SessionTimeout() {
   useEffect(() => {
     // An installed Starz app relies on Supabase's persistent session instead
     // of the website's inactivity timer. No timer or activity listeners are added.
+
+    console.log("Starz pwa detected:", isInstalledApp()  );
+    
     if (isInstalledApp()) return;
 
     const publicPages = ["/auth", "/privacy", "/about"];
